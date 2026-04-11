@@ -72,6 +72,7 @@
 <div class="controls">
     <button onclick="capture()">📸 Take Picture</button>
     <button onclick="readsensor()">📟 Read Sensor</button>
+    <button onclick="readLight()">💡 Read Light Values</button>
     <button onclick="toggleLive()">🎥 Live Video</button>
 </div>
 
@@ -116,6 +117,14 @@
 
     function readsensor() {
         fetch("/cgi-bin/sensor.sh")
+            .then(r => r.text())
+            .then(t => {
+                document.getElementById("output").innerText = t;
+            });
+    }
+
+    function readLight() {
+        fetch("/cgi-bin/read_light.py")
             .then(r => r.text())
             .then(t => {
                 document.getElementById("output").innerText = t;
