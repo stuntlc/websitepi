@@ -1,171 +1,20 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<title>Skunk Works Pi Control</title>
-
-<style>
-    body {
-        background: url("skunk-bg.jpg") no-repeat center center fixed;
-        background-size: cover;
-        color: #eee;
-        font-family: Arial, sans-serif;
-        text-align: center;
-        margin: 0;
-        padding: 0;
-        height: 100vh;
-        display: flex;
-        flex-direction: column;
-        justify-content: flex-start;
-    }
-
-    h1 {
-        font-family: "Courier New", monospace;
-        font-size: 32px;
-        letter-spacing: 4px;
-        text-shadow: 0 0 10px black;
-        margin: 10px 0 5px 0;
-    }
-
-    .controls {
-        margin-top: 5px;
-    }
-
-    button {
-        padding: 12px 25px;
-        margin: 10px;
-        font-size: 18px;
-        border-radius: 8px;
-        border: none;
-        cursor: pointer;
-        background: rgba(0,0,0,0.6);
-        color: white;
-        backdrop-filter: blur(4px);
-        box-shadow: 0 0 10px black;
-    }
-
-    #output {
-        margin-top: 10px;
-        font-size: 16px;
-        text-shadow: 0 0 5px black;
-    }
-
-    #preview, #live {
-        margin-top: 15px;
-        max-width: 95%;
-        max-height: 70vh;
-        border-radius: 8px;
-        box-shadow: 0 0 20px rgba(0,0,0,0.8);
-        object-fit: contain;
-    }
-
-    #live {
-        display: none;
-    }
-</style>
-
-</head>
-<body>
-
-<h1>SKUNK WORKS CONTROL</h1>
-
+<!-- Existing controls -->
 <div class="controls">
-    <button onclick="capture()">📸 Take Picture</button>
-    <button onclick="readsensor()">📟 Read Voltage</button>
-    <button onclick="readLight()">💡 Read Light Values</button>
-    <button onclick="toggleLive()">🎥 Live Video</button>
+    <!-- Existing buttons here... -->
+    <button onclick="relayOn()">Relay On</button>
+    <button onclick="relayOff()">Relay Off</button>
 </div>
 
-<div id="output"></div>
-
-<!-- Photo mode -->
-<img id="preview" src="" alt="Latest photo will appear here">
-
-<!-- Live mode -->
-<video id="live" autoplay muted playsinline></video>
-
 <script>
-    let liveMode = false;
+function relayOn() {
+    fetch('/cgi-bin/relay-on')
+        .then(response => response.json())
+        .then(data => console.log(data));
+}
 
-    function loadLatestImage() {
-        fetch("latest.txt")
-            .then(r => r.text())
-            .then(filename => {
-                filename = filename.trim();
-                if (filename.length > 0) {
-                    document.getElementById("preview").src = filename + "?t=" + Date.now();
-                }
-            });
-    }
-
-    function capture() {
-        // Switch back to photo mode
-        showPhoto();
-
-        fetch("/cgi-bin/capture.sh")
-            .then(r => r.text())
-            .then(t => {
-                document.getElementById("output").innerText = t;
-
-                const parts = t.split(":");
-                if (parts.length === 2) {
-                    const file = parts[1].trim();
-                    document.getElementById("preview").src = file + "?t=" + Date.now();
-                }
-            });
-    }
-
-    function readsensor() {
-        fetch("/cgi-bin/sensor.sh")
-            .then(r => r.text())
-            .then(t => {
-                document.getElementById("output").innerText = t;
-            });
-    }
-
-    function readLight() {
-        fetch("/cgi-bin/read_light.py")
-            .then(r => r.text())
-            .then(t => {
-                document.getElementById("output").innerText = t;
-            });
-    }
-
-    function toggleLive() {
-        if (liveMode) {
-            showPhoto();
-        } else {
-            showLive();
-        }
-    }
-
-    function showLive() {
-        liveMode = true;
-
-        const live = document.getElementById("live");
-        const preview = document.getElementById("preview");
-
-        preview.style.display = "none";
-        live.style.display = "block";
-
-        live.src = "http://" + location.hostname + ":8554";
-    }
-
-    function showPhoto() {
-        liveMode = false;
-
-        const live = document.getElementById("live");
-        const preview = document.getElementById("preview");
-
-        live.style.display = "none";
-        preview.style.display = "block";
-
-        // Stop the video stream
-        live.src = "";
-    }
-
-    loadLatestImage();
+function relayOff() {
+    fetch('/cgi-bin/relay-off')
+        .then(response => response.json())
+        .then(data => console.log(data));
+}
 </script>
-
-</body>
-</html>
