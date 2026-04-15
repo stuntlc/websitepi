@@ -1,3 +1,3 @@
 #!/bin/bash
-/home/q/relay-off
+/home/q/relayoff
 echo "Relay turned OFF"

@@ -1,3 +1,3 @@
 #!/bin/bash
-/home/q/relay-on
+/home/q/relayon
 echo "Relay turned ON"
