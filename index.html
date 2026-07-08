@@ -82,6 +82,7 @@
     <!-- Phone flashlight controls -->
     <button onclick="phoneLightOn()">📱🔦 Phone Light ON</button>
     <button onclick="phoneLightOff()">📱❌ Phone Light OFF</button>
+    <button onclick="cleanup()">🧹 Cleanup Old Photos</button>
 </div>
 
 <div id="output"></div>
@@ -207,6 +208,13 @@
                 document.getElementById("output").innerText = t;
             });
     }
+    function cleanup() {
+    fetch("/cgi-bin/cleanup.sh")
+        .then(r => r.text())
+        .then(t => {
+            document.getElementById("output").innerText = t;
+        });
+}
 
 </script>
 
