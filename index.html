@@ -70,151 +70,184 @@
 <h1>SKUNK WORKS CONTROL</h1>
 
 <div class="controls">
-    <button onclick="capture()">📸 Cheese</button>
-    <button onclick="readsensor()">📟 Read Voltage</button>
-    <button onclick="readLight()">💡 Lumen</button>
-    <button onclick="toggleLive()">🎥 Live</button>
+    <button onclick="netCheck()">🌐Network</button>
+    <button onclick="capture()">📸Cheese</button>
+    <button onclick="readsensor()">📟Volts</button>
+    <button onclick="readLight()">💡Lumen</button>
 
-    <!-- Relay controls -->
-    <button onclick="relayOn()">⚡ Relay ON</button>
-    <button onclick="relayOff()">❌ Relay OFF</button>
+    <button onclick="relayOn()">⚡Relay ON</button>
+    <button onclick="relayOff()">❌Relay OFF</button>
 
-    <!-- Phone flashlight controls -->
-    <button onclick="phoneLightOn()">📱🔦 LensON</button>
-    <button onclick="phoneLightOff()">📱❌ LensOFF</button>
-    <button onclick="cleanup()">🧹 Cleanup</button>
+    <button onclick="phoneLightOn()">📱🔦Lens ON</button>
+    <button onclick="phoneLightOff()">📱❌Lens OFF</button>
+
+    <button onclick="cleanup()">🧹Clean</button>
 </div>
 
 <div id="output"></div>
 
-<!-- Photo mode -->
 <img id="preview" src="" alt="Latest photo will appear here">
-
-<!-- Live mode -->
 <video id="live" autoplay muted playsinline controls src="/live.m3u8"></video>
 
 <script>
-    let liveMode = false;
 
-    function loadLatestImage() {
-        fetch("latest.txt")
-            .then(r => r.text())
-            .then(filename => {
-                filename = filename.trim();
-                if (filename.length > 0) {
-                    document.getElementById("preview").src = filename + "?t=" + Date.now();
-                }
-            });
-    }
+let liveMode = false;
 
-    function capture() {
+/* -------------------------
+   LOAD LATEST IMAGE
+------------------------- */
+function loadLatestImage() {
+    fetch("latest.txt")
+        .then(r => r.text())
+        .then(filename => {
+            filename = filename.trim();
+            if (filename.length > 0) {
+                document.getElementById("preview").src = filename + "?t=" + Date.now();
+            }
+        });
+}
+
+/* -------------------------
+   PHOTO CAPTURE
+------------------------- */
+function capture() {
+    showPhoto();
+
+    fetch("/cgi-bin/capture.sh")
+        .then(r => r.text())
+        .then(t => {
+            document.getElementById("output").innerText = t;
+
+            const parts = t.split(":");
+            if (parts.length === 2) {
+                const file = parts[1].trim();
+                document.getElementById("preview").src = file + "?t=" + Date.now();
+            }
+        });
+}
+
+/* -------------------------
+   SENSOR READ
+------------------------- */
+function readsensor() {
+    fetch("/cgi-bin/sensor.sh")
+        .then(r => r.text())
+        .then(t => {
+            document.getElementById("output").innerText = t;
+        });
+}
+
+function readLight() {
+    fetch("/cgi-bin/read_light.py")
+        .then(r => r.text())
+        .then(t => {
+            document.getElementById("output").innerText = t;
+        });
+}
+
+/* -------------------------
+   LIVE VIDEO
+------------------------- */
+function toggleLive() {
+    if (liveMode) {
         showPhoto();
-
-        fetch("/cgi-bin/capture.sh")
-            .then(r => r.text())
-            .then(t => {
-                document.getElementById("output").innerText = t;
-
-                const parts = t.split(":");
-                if (parts.length === 2) {
-                    const file = parts[1].trim();
-                    document.getElementById("preview").src = file + "?t=" + Date.now();
-                }
-            });
+    } else {
+        showLive();
     }
+}
 
-    function readsensor() {
-        fetch("/cgi-bin/sensor.sh")
-            .then(r => r.text())
-            .then(t => {
-                document.getElementById("output").innerText = t;
-            });
-    }
+function showLive() {
+    liveMode = true;
 
-    function readLight() {
-        fetch("/cgi-bin/read_light.py")
-            .then(r => r.text())
-            .then(t => {
-                document.getElementById("output").innerText = t;
-            });
-    }
+    const live = document.getElementById("live");
+    const preview = document.getElementById("preview");
 
-    function toggleLive() {
-        if (liveMode) {
-            showPhoto();
-        } else {
-            showLive();
-        }
-    }
+    preview.style.display = "none";
+    live.style.display = "block";
 
-    function showLive() {
-        liveMode = true;
+    live.src = "http://" + location.hostname + ":8081";
+}
 
-        const live = document.getElementById("live");
-        const preview = document.getElementById("preview");
+function showPhoto() {
+    liveMode = false;
 
-        preview.style.display = "none";
-        live.style.display = "block";
+    const live = document.getElementById("live");
+    const preview = document.getElementById("preview");
 
-        live.src = "http://" + location.hostname + ":8081";
-    }
+    live.style.display = "none";
+    preview.style.display = "block";
 
-    function showPhoto() {
-        liveMode = false;
+    live.src = "";
+}
 
-        const live = document.getElementById("live");
-        const preview = document.getElementById("preview");
+/* -------------------------
+   RELAY CONTROL
+------------------------- */
+function relayOn() {
+    fetch("/cgi-bin/relayon.sh")
+        .then(r => r.text())
+        .then(t => {
+            document.getElementById("output").innerText = t;
+        });
+}
 
-        live.style.display = "none";
-        preview.style.display = "block";
+function relayOff() {
+    fetch("/cgi-bin/relayoff.sh")
+        .then(r => r.text())
+        .then(t => {
+            document.getElementById("output").innerText = t;
+        });
+}
 
-        live.src = "";
-    }
+/* -------------------------
+   PHONE FLASHLIGHT
+------------------------- */
+function phoneLightOn() {
+    fetch("/cgi-bin/phonelight1")
+        .then(r => r.text())
+        .then(t => {
+            document.getElementById("output").innerText = t;
+        });
+}
 
-    loadLatestImage();
+function phoneLightOff() {
+    fetch("/cgi-bin/phonelight0")
+        .then(r => r.text())
+        .then(t => {
+            document.getElementById("output").innerText = t;
+        });
+}
 
-    function relayOn() {
-        fetch("/cgi-bin/relayon.sh")
-            .then(r => r.text())
-            .then(t => {
-                document.getElementById("output").innerText = t;
-            });
-    }
-
-    function relayOff() {
-        fetch("/cgi-bin/relayoff.sh")
-            .then(r => r.text())
-            .then(t => {
-                document.getElementById("output").innerText = t;
-            });
-    }
-
-    /* -------------------------
-       PHONE FLASHLIGHT CONTROL
-       ------------------------- */
-
-    function phoneLightOn() {
-        fetch("/cgi-bin/phonelight1")
-            .then(r => r.text())
-            .then(t => {
-                document.getElementById("output").innerText = t;
-            });
-    }
-
-    function phoneLightOff() {
-        fetch("/cgi-bin/phonelight0")
-            .then(r => r.text())
-            .then(t => {
-                document.getElementById("output").innerText = t;
-            });
-    }
-    function cleanup() {
+/* -------------------------
+   CLEANUP
+------------------------- */
+function cleanup() {
     fetch("/cgi-bin/cleanup.sh")
         .then(r => r.text())
         .then(t => {
             document.getElementById("output").innerText = t;
         });
 }
+
+/* -------------------------
+   NETWORK CHECK
+------------------------- */
+function netCheck() {
+    showPhoto();
+
+    fetch("/cgi-bin/netcheck.sh")
+        .then(r => r.text())
+        .then(t => {
+            document.getElementById("preview").style.display = "none";
+            document.getElementById("live").style.display = "none";
+            document.getElementById("output").innerHTML = t;
+        });
+}
+
+/* -------------------------
+   INIT
+------------------------- */
+loadLatestImage();
 
 </script>
 
