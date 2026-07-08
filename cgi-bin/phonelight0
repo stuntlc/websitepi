@@ -1,0 +1,5 @@
+#!/bin/bash
+echo "Content-type: text/plain"
+echo ""
+adb shell "echo 0 > /sys/class/leds/flashlight/brightness"
+echo "Flashlight OFF"

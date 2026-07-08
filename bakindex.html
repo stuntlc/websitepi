@@ -74,14 +74,12 @@
     <button onclick="readsensor()">📟 Read Voltage</button>
     <button onclick="readLight()">💡 Read Light Values</button>
     <button onclick="toggleLive()">🎥 Live Video</button>
-
     <!-- Relay controls -->
     <button onclick="relayOn()">⚡ Relay ON</button>
     <button onclick="relayOff()">❌ Relay OFF</button>
+    <button onclick="location.href='/cgi-bin/phonelight1'">Phone Light ON</button>
+    <button onclick="location.href='/cgi-bin/phonelight0'">Phone Light OFF</button>
 
-    <!-- Phone flashlight controls -->
-    <button onclick="phoneLightOn()">📱🔦 Phone Light ON</button>
-    <button onclick="phoneLightOff()">📱❌ Phone Light OFF</button>
 </div>
 
 <div id="output"></div>
@@ -107,6 +105,7 @@
     }
 
     function capture() {
+        // Switch back to photo mode
         showPhoto();
 
         fetch("/cgi-bin/capture.sh")
@@ -156,6 +155,7 @@
         live.style.display = "block";
 
         live.src = "http://" + location.hostname + ":8081";
+;
     }
 
     function showPhoto() {
@@ -167,46 +167,26 @@
         live.style.display = "none";
         preview.style.display = "block";
 
+        // Stop the video stream
         live.src = "";
     }
 
     loadLatestImage();
+function relayOn() {
+    fetch("/cgi-bin/relayon.sh")
+        .then(r => r.text())
+        .then(t => {
+            document.getElementById("output").innerText = t;
+        });
+     }
 
-    function relayOn() {
-        fetch("/cgi-bin/relayon.sh")
-            .then(r => r.text())
-            .then(t => {
-                document.getElementById("output").innerText = t;
-            });
-    }
-
-    function relayOff() {
-        fetch("/cgi-bin/relayoff.sh")
-            .then(r => r.text())
-            .then(t => {
-                document.getElementById("output").innerText = t;
-            });
-    }
-
-    /* -------------------------
-       PHONE FLASHLIGHT CONTROL
-       ------------------------- */
-
-    function phoneLightOn() {
-        fetch("/cgi-bin/phonelight1")
-            .then(r => r.text())
-            .then(t => {
-                document.getElementById("output").innerText = t;
-            });
-    }
-
-    function phoneLightOff() {
-        fetch("/cgi-bin/phonelight0")
-            .then(r => r.text())
-            .then(t => {
-                document.getElementById("output").innerText = t;
-            });
-    }
+function relayOff() {
+    fetch("/cgi-bin/relayoff.sh")
+        .then(r => r.text())
+        .then(t => {
+            document.getElementById("output").innerText = t;
+        });
+}
 
 </script>
 
