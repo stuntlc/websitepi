@@ -1,0 +1,11 @@
+#!/bin/bash
+echo "Content-Type: text/plain"
+echo ""
+
+adb shell am start -n com.android.fmradio/.FmMainActivity
+sleep 1
+adb shell input tap 550 120
+sleep 1
+adb shell input tap 550 220
+
+echo "FM Radio ON (speaker enabled)"

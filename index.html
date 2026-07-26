@@ -80,6 +80,9 @@
     <button onclick="phoneLightOn()">🔦 ON</button>
     <button onclick="phoneLightOff()">❌ OFF</button>
     <button onclick="cleanup()">🧹Clean</button>
+    <button onclick="fmOn()">📻 FM ON</button>
+    <button onclick="fmOff()">❌ FM OFF</button>
+
 </div>
 
 <div id="output"></div>
@@ -248,6 +251,23 @@ function netCheck() {
    INIT
 ------------------------- */
 loadLatestImage();
+
+function fmOn() {
+    fetch("/cgi-bin/fmradiophone")
+        .then(r => r.text())
+        .then(t => {
+            document.getElementById("output").innerText = t;
+        });
+}
+
+function fmOff() {
+    fetch("/cgi-bin/fmphoneoff")
+        .then(r => r.text())
+        .then(t => {
+            document.getElementById("output").innerText = t;
+        });
+}
+
 
 </script>
 
