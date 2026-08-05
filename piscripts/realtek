@@ -1,0 +1,4 @@
+sudo rm -rf /var/lock/LCK..ttyUSB0
+sudo busybox microcom -s 38400 /dev/ttyUSB0&
+sudo echo -e "\nwebs&\n" > /dev/ttyUSB0&
+sudo ifconfig eth0:1 192.168.100.17&
