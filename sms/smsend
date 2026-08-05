@@ -1,0 +1,48 @@
+#!/bin/bash
+
+NUMBER="$1"
+shift
+MESSAGE="$*"
+
+if [ -z "$NUMBER" ] || [ -z "$MESSAGE" ]; then
+    echo "Usage: $0 <number> <message>"
+    exit 1
+fi
+
+echo "Sending SMS to $NUMBER: $MESSAGE"
+
+ENCODED_MESSAGE=$(echo "$MESSAGE" | sed 's/ /%s/g')
+
+# Reset Messaging
+adb shell am force-stop com.android.messaging
+sleep 0.5
+
+# Open compose window
+adb shell am start -a android.intent.action.SENDTO -d "sms:$NUMBER"
+sleep 1
+
+# Tap compose box
+adb shell input tap 340 1419
+sleep 0.3
+
+# Type message
+adb shell input text "$ENCODED_MESSAGE"
+sleep 0.5
+
+# CLOSE KEYBOARD (critical!)
+adb shell input keyevent 4
+sleep 0.3
+
+# Tap SEND button (stable position)
+adb shell input tap 648 1419
+sleep 1
+
+# Close conversation
+adb shell input keyevent 4
+sleep 0.3
+
+# Reset Messaging again
+adb shell am force-stop com.android.messaging
+sleep 0.3
+
+echo "SMS sent successfully."
