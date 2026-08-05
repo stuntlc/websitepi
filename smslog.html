@@ -1,0 +1,12 @@
+<h2>Received SMS Messages</h2>
+<pre id="log"></pre>
+
+<script>
+function loadLog() {
+  fetch('/cgi-bin/smslog.cgi')
+    .then(r => r.text())
+    .then(t => document.getElementById('log').textContent = t);
+}
+setInterval(loadLog, 3000);
+loadLog();
+</script>

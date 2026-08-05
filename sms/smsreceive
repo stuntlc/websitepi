@@ -1,0 +1,29 @@
+#!/bin/bash
+MSG="$1"
+MSG=$(echo "$MSG" | tr '[:lower:]' '[:upper:]')
+
+case "$MSG" in
+    *LED\ ON*)
+        echo "Turning LED ON"
+        /home/q/websd/piscripts/relayon
+        ;;
+    *LED\ OFF*)
+        echo "Turning LED OFF"
+        /home/q/websd/piscripts/relayoff
+        ;;
+    *FM\ ON*)
+        echo "Starting FM radio"
+        /home/q/websd/piscripts/fmradiophone
+        ;;
+    *FM\ OFF*)
+        echo "Stopping FM radio"
+        /home/q/websd/piscripts/fmphoneoff
+        ;;
+    *REBOOT*)
+        echo "Rebooting Pi"
+        sudo reboot
+        ;;
+    *)
+        echo "No matching action"
+        ;;
+esac

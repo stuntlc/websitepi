@@ -1,0 +1,13 @@
+<h2>SMS Actions</h2>
+
+<button onclick="sendAction('led_on')">LED ON</button>
+<button onclick="sendAction('led_off')">LED OFF</button>
+<button onclick="sendAction('reboot')">Reboot Pi</button>
+
+<script>
+function sendAction(action) {
+    fetch('/cgi-bin/sms.cgi?' + action)
+        .then(r => r.text())
+        .then(t => alert(t));
+}
+</script>
