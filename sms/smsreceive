@@ -1,6 +1,8 @@
 #!/bin/bash
 MSG="$1"
-MSG=$(echo "$MSG" | tr '[:upper:]' '[:lower:]')
+MSG=$(printf '%s\n' "$MSG" |
+    tr '[:upper:]' '[:lower:]' |
+    sed -E 's/[[:space:]]+/ /g; s/^ //; s/ $//')
 
 case "$MSG" in
     *led\ on*)
