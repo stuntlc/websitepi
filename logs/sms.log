@@ -105087,3 +105087,12 @@ No matching action
 error: no devices/emulators found
 Received SMS: 
 No matching action
+Received SMS: led off, date=1787181511021
+Turning LED OFF
+Received SMS: led on, date=1787181525058
+Turning LED ON
+Received SMS: fm on, date=1787181538220
+Starting FM radio
+Starting: Intent { cmp=com.android.fmradio/.FmMainActivity }
+Received SMS: led off, date=1787181574098
+Turning LED OFF
