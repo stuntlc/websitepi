@@ -18,9 +18,8 @@ fi
 while true; do
     LAST=$(adb -s "$PHONE" shell content query \
         --uri content://sms/inbox \
-        --projection _id:body \
-        --sort "date DESC" \
-        --limit 1 2>/dev/null)
+        --projection _id:body:date \
+        --sort date 2>/dev/null | tail -n 1)
     ID=$(printf '%s\n' "$LAST" | sed -n 's/.*_id=\([^, ]*\).*/\1/p' | tr -d '\r')
     BODY=$(printf '%s\n' "$LAST" | sed -n 's/.*body=//p' | tr -d '\r')
 
