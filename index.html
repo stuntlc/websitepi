@@ -5,291 +5,226 @@
 <title>Skunk Works Pi Control</title>
 
 <style>
-    body {
-        background: url("skunk-bg.jpg") no-repeat center center fixed;
-        background-size: cover;
-        color: #eee;
-        font-family: Arial, sans-serif;
-        text-align: center;
-        margin: 0;
-        padding: 0;
-        height: 100vh;
-        display: flex;
-        flex-direction: column;
-        justify-content: flex-start;
-    }
+body {
+  background: url("skunk-bg.jpg") no-repeat center center fixed;
+  background-size: cover;
+  color: #eee;
+  font-family: Arial, sans-serif;
+  margin: 0;
+  text-align: center;
+}
 
-    h1 {
-        font-family: "Courier New", monospace;
-        font-size: 32px;
-        letter-spacing: 4px;
-        text-shadow: 0 0 10px black;
-        margin: 10px 0 5px 0;
-    }
+/* --- TOP BAR --- */
+.topbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(4px);
+  box-shadow: 0 0 10px black;
+  padding: 8px 20px;
+  z-index: 1000;
+}
 
-    .controls {
-        margin-top: 5px;
-    }
+h1 {
+  font-family: "Courier New", monospace;
+  font-size: 30px;
+  letter-spacing: 4px;
+  text-shadow: 0 0 10px black;
+  margin: 0;
+  flex: 0 0 auto;
+}
 
-    button {
-        padding: 8px 18px;
-        margin: 5px;
-        font-size: 18px;
-        border-radius: 8px;
-        border: none;
-        cursor: pointer;
-        background: rgba(0,0,0,0.6);
-        color: white;
-        backdrop-filter: blur(4px);
-        box-shadow: 0 0 10px black;
-    }
+/* --- BUTTON GROUPS --- */
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
 
-    #output {
-        margin-top: 10px;
-        font-size: 16px;
-        text-shadow: 0 0 5px black;
-    }
+button {
+  padding: 6px 14px;
+  font-size: 16px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  background: rgba(0,0,0,0.6);
+  color: white;
+  box-shadow: 0 0 8px black;
+  transition: background 0.2s;
+}
 
-    #preview, #live {
-        margin-top: 15px;
-        max-width: 95%;
-        max-height: 70vh;
-        border-radius: 8px;
-        box-shadow: 0 0 20px rgba(0,0,0,0.8);
-        object-fit: contain;
-    }
+button:hover {
+  background: rgba(255,255,255,0.2);
+}
 
-    #live {
-        display: none;
-    }
+/* --- MAIN CONTENT --- */
+.main {
+  margin-top: 90px; /* space below header */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+#output {
+  margin-top: 10px;
+  font-size: 16px;
+  text-shadow: 0 0 5px black;
+}
+
+#preview, #live {
+  margin-top: 15px;
+  max-width: 90%;
+  max-height: 70vh;
+  border-radius: 8px;
+  box-shadow: 0 0 20px rgba(0,0,0,0.8);
+  object-fit: contain;
+}
+
+#live {
+  display: none;
+  transform: rotate(180deg);
+  transition: transform 0.3s ease;
+}
+
+/* --- ROTATE CONTROLS ON RIGHT --- */
+#rotateControls {
+  position: absolute;
+  top: 50%;
+  right: 20px;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 2000;
+}
 </style>
-
 </head>
 <body>
 
-<h1>SKUNK WORKS CONTROL</h1>
-
-<div class="controls">
+<div class="topbar">
+  <div class="controls">
     <button onclick="netCheck()">🌐Network</button>
     <button onclick="capture()">📸Cheese</button>
-    <button onclick="startLive()">🎥Live</button>    
+    <button onclick="startLive()">🎥Live</button>
     <button onclick="readsensor()">📟Volts</button>
     <button onclick="readLight()">💡Lumen</button>
+  </div>
+
+  <h1>SKUNK WORKS CONTROL</h1>
+
+  <div class="controls">
     <button onclick="relayOn()">⚡LED ON</button>
     <button onclick="relayOff()">❌LED OFF</button>
     <button onclick="phoneLightOn()">🔦 ON</button>
     <button onclick="phoneLightOff()">❌ OFF</button>
-    <button onclick="cleanup()">🧹Clean</button>
-    <button onclick="fmOn()">📻 FM ON</button>
-    <button onclick="fmOff()">❌ FM OFF</button>
     <button onclick="showWeather()">🌦 Weather</button>
-   
+    <button onclick="cleanup()">🧹Clean</button>
+  </div>
 </div>
 
-<div id="output"></div>
+<div class="main">
+  <div id="output"></div>
+  <img id="preview" src="" alt="Latest photo will appear here">
 
-<img id="preview" src="" alt="Latest photo will appear here">
-<img id="live" src="" alt="Live camera stream" style="transform: rotate(180deg);">
-
+  <div style="position: relative; display: inline-block;">
+    <img id="live" src="" alt="Live camera stream">
+    <div id="rotateControls">
+      <button onclick="rotateLeft()">⟲ Left</button>
+      <button onclick="rotateRight()">⟳ Right</button>
+    </div>
+  </div>
+</div>
 
 <script>
-
 let liveMode = false;
+let rotation = 180;
 
 /* -------------------------
    LOAD LATEST IMAGE
 ------------------------- */
 function loadLatestImage() {
-    fetch("latest.txt")
-        .then(r => r.text())
-        .then(filename => {
-            filename = filename.trim();
-            if (filename.length > 0) {
-                document.getElementById("preview").src = filename + "?t=" + Date.now();
-            }
-        });
+  fetch("latest.txt")
+    .then(r => r.text())
+    .then(filename => {
+      filename = filename.trim();
+      if (filename.length > 0) {
+        document.getElementById("preview").src = filename + "?t=" + Date.now();
+      }
+    });
 }
 
 /* -------------------------
    START LIVE STREAM
 ------------------------- */
 function startLive() {
-    fetch("/cgi-bin/startcam.sh")
-        .then(r => r.text())
-        .then(t => {
-            document.getElementById("output").innerText = t;
-            showLive();
-        });
+  fetch("/cgi-bin/startcam.sh")
+    .then(r => r.text())
+    .then(t => {
+      document.getElementById("output").innerText = t;
+      showLive();
+    });
 }
 
 function showLive() {
-    liveMode = true;
+  liveMode = true;
+  const live = document.getElementById("live");
+  const preview = document.getElementById("preview");
+  const rotateControls = document.getElementById("rotateControls");
 
-    const live = document.getElementById("live");
-    const preview = document.getElementById("preview");
-
-    preview.style.display = "none";
-    live.style.display = "block";
-
-    live.src = "http://" + location.hostname + ":8000/";
+  preview.style.display = "none";
+  live.style.display = "block";
+  rotateControls.style.display = "flex";
+  live.src = "http://" + location.hostname + ":8000/";
 }
 
 function showPhoto() {
-    liveMode = false;
+  liveMode = false;
+  const live = document.getElementById("live");
+  const preview = document.getElementById("preview");
+  const rotateControls = document.getElementById("rotateControls");
 
-    const live = document.getElementById("live");
-    const preview = document.getElementById("preview");
-
-    live.style.display = "none";
-    preview.style.display = "block";
-
-    live.src = "";
+  live.style.display = "none";
+  preview.style.display = "block";
+  rotateControls.style.display = "none";
+  live.src = "";
 }
 
 /* -------------------------
-   PHOTO CAPTURE
+   ROTATION CONTROLS
 ------------------------- */
-function capture() {
-    showPhoto();
+function rotateLeft() {
+  rotation -= 90;
+  document.getElementById("live").style.transform = `rotate(${rotation}deg)`;
+}
 
-    fetch("/cgi-bin/capture.sh")
-        .then(r => r.text())
-        .then(t => {
-            document.getElementById("output").innerText = t;
-
-            const parts = t.split(":");
-            if (parts.length === 2) {
-                const file = parts[1].trim();
-                document.getElementById("preview").src = file + "?t=" + Date.now();
-            }
-        });
+function rotateRight() {
+  rotation += 90;
+  document.getElementById("live").style.transform = `rotate(${rotation}deg)`;
 }
 
 /* -------------------------
-   SENSOR READ
+   OTHER CONTROLS
 ------------------------- */
-function readsensor() {
-    fetch("/cgi-bin/sensor.sh")
-        .then(r => r.text())
-        .then(t => {
-            document.getElementById("output").innerText = t;
-        });
-}
+function capture(){showPhoto();fetch("/cgi-bin/capture.sh").then(r=>r.text()).then(t=>{document.getElementById("output").innerText=t;const parts=t.split(":");if(parts.length===2){const file=parts[1].trim();document.getElementById("preview").src=file+"?t="+Date.now();}});}
+function readsensor(){fetch("/cgi-bin/sensor.sh").then(r=>r.text()).then(t=>{document.getElementById("output").innerText=t;});}
+function readLight(){fetch("/cgi-bin/read_light.py").then(r=>r.text()).then(t=>{document.getElementById("output").innerText=t;});}
+function relayOn(){fetch("/cgi-bin/relayon.sh").then(r=>r.text()).then(t=>{document.getElementById("output").innerText=t;});}
+function relayOff(){fetch("/cgi-bin/relayoff.sh").then(r=>r.text()).then(t=>{document.getElementById("output").innerText=t;});}
+function phoneLightOn(){fetch("/cgi-bin/phonelight1").then(r=>r.text()).then(t=>{document.getElementById("output").innerText=t;});}
+function phoneLightOff(){fetch("/cgi-bin/phonelight0").then(r=>r.text()).then(t=>{document.getElementById("output").innerText=t;});}
+function cleanup(){fetch("/cgi-bin/cleanup.sh").then(r=>r.text()).then(t=>{document.getElementById("output").innerText=t;});}
+function fmOn(){fetch("/cgi-bin/fmradiophone").then(r=>r.text()).then(t=>{document.getElementById("output").innerText=t;});}
+function fmOff(){fetch("/cgi-bin/fmphoneoff").then(r=>r.text()).then(t=>{document.getElementById("output").innerText=t;});}
+function netCheck(){showPhoto();fetch("/cgi-bin/netcheck.sh").then(r=>r.text()).then(t=>{document.getElementById("preview").style.display="none";document.getElementById("live").style.display="none";document.getElementById("output").innerHTML=t;});}
+function showWeather(){showPhoto();fetch("/cgi-bin/meteo.cgi").then(r=>r.text()).then(t=>{document.getElementById("preview").style.display="none";document.getElementById("live").style.display="none";document.getElementById("output").innerHTML=t;}).catch(err=>{document.getElementById("output").innerText="Weather script error: "+err;});}
 
-function readLight() {
-    fetch("/cgi-bin/read_light.py")
-        .then(r => r.text())
-        .then(t => {
-            document.getElementById("output").innerText = t;
-        });
-}
-
-/* -------------------------
-   RELAY CONTROL
-------------------------- */
-function relayOn() {
-    fetch("/cgi-bin/relayon.sh")
-        .then(r => r.text())
-        .then(t => {
-            document.getElementById("output").innerText = t;
-        });
-}
-
-function relayOff() {
-    fetch("/cgi-bin/relayoff.sh")
-        .then(r => r.text())
-        .then(t => {
-            document.getElementById("output").innerText = t;
-        });
-}
-
-/* -------------------------
-   PHONE FLASHLIGHT
-------------------------- */
-function phoneLightOn() {
-    fetch("/cgi-bin/phonelight1")
-        .then(r => r.text())
-        .then(t => {
-            document.getElementById("output").innerText = t;
-        });
-}
-
-function phoneLightOff() {
-    fetch("/cgi-bin/phonelight0")
-        .then(r => r.text())
-        .then(t => {
-            document.getElementById("output").innerText = t;
-        });
-}
-
-/* -------------------------
-   CLEANUP
-------------------------- */
-function cleanup() {
-    fetch("/cgi-bin/cleanup.sh")
-        .then(r => r.text())
-        .then(t => {
-            document.getElementById("output").innerText = t;
-        });
-}
-
-/* -------------------------
-   NETWORK CHECK
-------------------------- */
-function netCheck() {
-    showPhoto();
-
-    fetch("/cgi-bin/netcheck.sh")
-        .then(r => r.text())
-        .then(t => {
-            document.getElementById("preview").style.display = "none";
-            document.getElementById("live").style.display = "none";
-            document.getElementById("output").innerHTML = t;
-        });
-}
-
-/* -------------------------
-   METEO
-------------------------- */
-function showWeather() {
-    showPhoto(); // hides live preview if active
-    fetch("/cgi-bin/meteo.cgi")
-        .then(r => r.text())
-        .then(t => {
-            document.getElementById("preview").style.display = "none";
-            document.getElementById("live").style.display = "none";
-            document.getElementById("output").innerHTML = t;
-        })
-        .catch(err => {
-            document.getElementById("output").innerText = "Weather script error: " + err;
-        });
-}
-
-/* -------------------------
-   INIT
-------------------------- */
 loadLatestImage();
-
-function fmOn() {
-    fetch("/cgi-bin/fmradiophone")
-        .then(r => r.text())
-        .then(t => {
-            document.getElementById("output").innerText = t;
-        });
-}
-
-function fmOff() {
-    fetch("/cgi-bin/fmphoneoff")
-        .then(r => r.text())
-        .then(t => {
-            document.getElementById("output").innerText = t;
-        });
-}
-
-
 </script>
-<li><a href="sms.html">SMS Actions</a></li>
-<li><a href="smslog.html">SMS Log</a></li>
-
 </body>
 </html>
