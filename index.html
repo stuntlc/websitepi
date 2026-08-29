@@ -198,7 +198,21 @@ function runAction(script) {
   fetch("/cgi-bin/" + script)
     .then(r => r.text())
     .then(t => {
-      document.getElementById("output").innerText = t;
+      const output = document.getElementById("output");
+      const preview = document.getElementById("preview");
+      const live = document.getElementById("live");
+      const rotateControls = document.getElementById("rotateControls");
+
+      if (script === "netcheck.sh" || script === "meteo.cgi") {
+        preview.style.display = "none";
+        live.style.display = "none";
+        live.src = "";
+        rotateControls.style.display = "none";
+        output.innerHTML = t;
+        return;
+      }
+
+      output.innerText = t;
     });
 }
 
