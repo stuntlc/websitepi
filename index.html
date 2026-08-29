@@ -173,28 +173,33 @@ function startLive() {
    UNIVERSAL ACTION HANDLER
 ------------------------- */
 function runAction(script) {
-  // Stop live stream first
-  fetch("/cgi-bin/stop_live.sh").then(() => {
-    liveMode = false;
-    document.getElementById("live").style.display = "none";
-    document.getElementById("live").src = "";
-    document.getElementById("preview").style.display = "block";
-    document.getElementById("rotateControls").style.display = "none";
+  if (script === "capture.sh") {
+    fetch("/cgi-bin/stop_live.sh").then(() => {
+      liveMode = false;
+      document.getElementById("live").style.display = "none";
+      document.getElementById("live").src = "";
+      document.getElementById("preview").style.display = "block";
+      document.getElementById("rotateControls").style.display = "none";
 
-    // Run the selected action
-    fetch("/cgi-bin/" + script)
-      .then(r => r.text())
-      .then(t => {
-        document.getElementById("output").innerText = t;
-        if (script === "capture.sh") {
+      fetch("/cgi-bin/" + script)
+        .then(r => r.text())
+        .then(t => {
+          document.getElementById("output").innerText = t;
           const parts = t.split(":");
           if (parts.length === 2) {
             const file = parts[1].trim();
             document.getElementById("preview").src = file + "?t=" + Date.now();
           }
-        }
-      });
-  });
+        });
+    });
+    return;
+  }
+
+  fetch("/cgi-bin/" + script)
+    .then(r => r.text())
+    .then(t => {
+      document.getElementById("output").innerText = t;
+    });
 }
 
 /* -------------------------
