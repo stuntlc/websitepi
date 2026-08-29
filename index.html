@@ -82,7 +82,8 @@
     <button onclick="cleanup()">🧹Clean</button>
     <button onclick="fmOn()">📻 FM ON</button>
     <button onclick="fmOff()">❌ FM OFF</button>
-
+    <button onclick="showWeather()">🌦 Weather</button>
+   
 </div>
 
 <div id="output"></div>
@@ -244,6 +245,23 @@ function netCheck() {
             document.getElementById("preview").style.display = "none";
             document.getElementById("live").style.display = "none";
             document.getElementById("output").innerHTML = t;
+        });
+}
+
+/* -------------------------
+   METEO
+------------------------- */
+function showWeather() {
+    showPhoto(); // hides live preview if active
+    fetch("/cgi-bin/meteo.cgi")
+        .then(r => r.text())
+        .then(t => {
+            document.getElementById("preview").style.display = "none";
+            document.getElementById("live").style.display = "none";
+            document.getElementById("output").innerHTML = t;
+        })
+        .catch(err => {
+            document.getElementById("output").innerText = "Weather script error: " + err;
         });
 }
 
