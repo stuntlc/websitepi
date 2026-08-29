@@ -39,7 +39,7 @@ h1 {
   flex: 0 0 auto;
 }
 
-/* --- BUTTON GROUPS --- */
+/* --- BUTTONS --- */
 .controls {
   display: flex;
   flex-wrap: wrap;
@@ -64,7 +64,7 @@ button:hover {
 
 /* --- MAIN CONTENT --- */
 .main {
-  margin-top: 90px; /* space below header */
+  margin-top: 90px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -88,11 +88,14 @@ button:hover {
 
 #live {
   display: none;
+  width: 95%;
+  height: auto;
+  max-height: 75vh;
   transform: rotate(180deg);
   transition: transform 0.3s ease;
 }
 
-/* --- ROTATE CONTROLS ON RIGHT --- */
+/* --- ROTATE CONTROLS --- */
 #rotateControls {
   position: absolute;
   top: 50%;
@@ -109,24 +112,24 @@ button:hover {
 
 <div class="topbar">
   <div class="controls">
-    <button onclick="netCheck()">🌐Network</button>
-    <button onclick="capture()">📸Cheese</button>
+    <button onclick="runAction('netcheck.sh')">🌐Network</button>
+    <button onclick="runAction('capture.sh')">📸Cheese</button>
     <button onclick="startLive()">🎥Live</button>
-    <button onclick="readsensor()">📟Volts</button>
-    <button onclick="fmOn()">📻 FM ON</button>
-    <button onclick="fmOff()">❌ FM OFF</button>
-    <button onclick="readLight()">💡Lumen</button>
+    <button onclick="runAction('sensor.sh')">📟Volts</button>
+    <button onclick="runAction('fmradiophone')">📻FM ON</button>
+    <button onclick="runAction('fmphoneoff')">❌FM OFF</button>
+    <button onclick="runAction('read_light.py')">💡Lumen</button>
   </div>
 
   <h1>SKUNK WORKS CONTROL</h1>
 
   <div class="controls">
-    <button onclick="relayOn()">⚡LED ON</button>
-    <button onclick="relayOff()">❌LED OFF</button>
-    <button onclick="phoneLightOn()">🔦 ON</button>
-    <button onclick="phoneLightOff()">❌ OFF</button>
-    <button onclick="showWeather()">🌦 Weather</button>
-    <button onclick="cleanup()">🧹Clean</button>
+    <button onclick="runAction('relayon.sh')">⚡LED ON</button>
+    <button onclick="runAction('relayoff.sh')">❌LED OFF</button>
+    <button onclick="runAction('phonelight1')">🔦ON</button>
+    <button onclick="runAction('phonelight0')">❌OFF</button>
+    <button onclick="runAction('meteo.cgi')">🌦Weather</button>
+    <button onclick="runAction('cleanup.sh')">🧹Clean</button>
   </div>
 </div>
 
@@ -137,8 +140,8 @@ button:hover {
   <div style="position: relative; display: inline-block;">
     <img id="live" src="" alt="Live camera stream">
     <div id="rotateControls">
-      <button onclick="rotateLeft()">⟲ Left</button>
-      <button onclick="rotateRight()">⟳ Right</button>
+      <button onclick="rotateLeft()">⟲Left</button>
+      <button onclick="rotateRight()">⟳Right</button>
     </div>
   </div>
 </div>
@@ -148,53 +151,50 @@ let liveMode = false;
 let rotation = 180;
 
 /* -------------------------
-   LOAD LATEST IMAGE
+   START LIVE STREAM
 ------------------------- */
-function loadLatestImage() {
-  fetch("latest.txt")
+function startLive() {
+  fetch("/cgi-bin/live.cgi")
     .then(r => r.text())
-    .then(filename => {
-      filename = filename.trim();
-      if (filename.length > 0) {
-        document.getElementById("preview").src = filename + "?t=" + Date.now();
-      }
+    .then(t => {
+      document.getElementById("output").innerText = t;
+      const live = document.getElementById("live");
+      const preview = document.getElementById("preview");
+      const rotateControls = document.getElementById("rotateControls");
+
+      preview.style.display = "none";
+      live.style.display = "block";
+      rotateControls.style.display = "flex";
+      live.src = "http://" + location.hostname + ":8000/";
     });
 }
 
 /* -------------------------
-   START LIVE STREAM
+   UNIVERSAL ACTION HANDLER
 ------------------------- */
-function startLive() {
-  fetch("/cgi-bin/startcam.sh")
-    .then(r => r.text())
-    .then(t => {
-      document.getElementById("output").innerText = t;
-      showLive();
-    });
-}
+function runAction(script) {
+  // Stop live stream first
+  fetch("/cgi-bin/stop_live.sh").then(() => {
+    liveMode = false;
+    document.getElementById("live").style.display = "none";
+    document.getElementById("live").src = "";
+    document.getElementById("preview").style.display = "block";
+    document.getElementById("rotateControls").style.display = "none";
 
-function showLive() {
-  liveMode = true;
-  const live = document.getElementById("live");
-  const preview = document.getElementById("preview");
-  const rotateControls = document.getElementById("rotateControls");
-
-  preview.style.display = "none";
-  live.style.display = "block";
-  rotateControls.style.display = "flex";
-  live.src = "http://" + location.hostname + ":8000/";
-}
-
-function showPhoto() {
-  liveMode = false;
-  const live = document.getElementById("live");
-  const preview = document.getElementById("preview");
-  const rotateControls = document.getElementById("rotateControls");
-
-  live.style.display = "none";
-  preview.style.display = "block";
-  rotateControls.style.display = "none";
-  live.src = "";
+    // Run the selected action
+    fetch("/cgi-bin/" + script)
+      .then(r => r.text())
+      .then(t => {
+        document.getElementById("output").innerText = t;
+        if (script === "capture.sh") {
+          const parts = t.split(":");
+          if (parts.length === 2) {
+            const file = parts[1].trim();
+            document.getElementById("preview").src = file + "?t=" + Date.now();
+          }
+        }
+      });
+  });
 }
 
 /* -------------------------
@@ -209,24 +209,6 @@ function rotateRight() {
   rotation += 90;
   document.getElementById("live").style.transform = `rotate(${rotation}deg)`;
 }
-
-/* -------------------------
-   OTHER CONTROLS
-------------------------- */
-function capture(){showPhoto();fetch("/cgi-bin/capture.sh").then(r=>r.text()).then(t=>{document.getElementById("output").innerText=t;const parts=t.split(":");if(parts.length===2){const file=parts[1].trim();document.getElementById("preview").src=file+"?t="+Date.now();}});}
-function readsensor(){fetch("/cgi-bin/sensor.sh").then(r=>r.text()).then(t=>{document.getElementById("output").innerText=t;});}
-function readLight(){fetch("/cgi-bin/read_light.py").then(r=>r.text()).then(t=>{document.getElementById("output").innerText=t;});}
-function relayOn(){fetch("/cgi-bin/relayon.sh").then(r=>r.text()).then(t=>{document.getElementById("output").innerText=t;});}
-function relayOff(){fetch("/cgi-bin/relayoff.sh").then(r=>r.text()).then(t=>{document.getElementById("output").innerText=t;});}
-function phoneLightOn(){fetch("/cgi-bin/phonelight1").then(r=>r.text()).then(t=>{document.getElementById("output").innerText=t;});}
-function phoneLightOff(){fetch("/cgi-bin/phonelight0").then(r=>r.text()).then(t=>{document.getElementById("output").innerText=t;});}
-function cleanup(){fetch("/cgi-bin/cleanup.sh").then(r=>r.text()).then(t=>{document.getElementById("output").innerText=t;});}
-function fmOn(){fetch("/cgi-bin/fmradiophone").then(r=>r.text()).then(t=>{document.getElementById("output").innerText=t;});}
-function fmOff(){fetch("/cgi-bin/fmphoneoff").then(r=>r.text()).then(t=>{document.getElementById("output").innerText=t;});}
-function netCheck(){showPhoto();fetch("/cgi-bin/netcheck.sh").then(r=>r.text()).then(t=>{document.getElementById("preview").style.display="none";document.getElementById("live").style.display="none";document.getElementById("output").innerHTML=t;});}
-function showWeather(){showPhoto();fetch("/cgi-bin/meteo.cgi").then(r=>r.text()).then(t=>{document.getElementById("preview").style.display="none";document.getElementById("live").style.display="none";document.getElementById("output").innerHTML=t;}).catch(err=>{document.getElementById("output").innerText="Weather script error: "+err;});}
-
-loadLatestImage();
 </script>
 </body>
 </html>

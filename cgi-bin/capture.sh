@@ -2,9 +2,8 @@
 echo "Content-Type: text/plain"
 echo ""
 
-# Kill MJPEG server before capturing
-pkill -f /home/q/mjpeg.py
-pkill -f rpicam-vid
+# Stop live stream first
+pkill -f mjpeg.py
 
 TS=$(date +%Y%m%d-%H%M%S)
 OUT="/home/q/websd/$TS.jpg"
