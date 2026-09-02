@@ -51,6 +51,7 @@ button:hover, a:hover { border-color: var(--green); color: white; }
 .lease { padding: 9px 10px; border-left: 3px solid var(--green); background: rgba(15, 52, 30, .5); }
 .lease strong { display: block; color: white; font-size: 13px; }
 .lease span { display: block; color: var(--muted); font-size: 11px; margin-top: 4px; overflow-wrap: anywhere; }
+.modem-neighbors { display: grid; gap: 8px; }
 .device-list { display: grid; gap: 9px; }
 .device { border-left: 3px solid var(--green); padding: 9px 10px; background: rgba(15, 52, 30, .5); }
 .device strong { display: block; color: white; font-size: 15px; }
@@ -83,6 +84,9 @@ button:hover, a:hover { border-color: var(--green); color: white; }
       <h3 class="section-label">DHCP LEASES // MODEM SWITCH // 10.0.0.0/24</h3>
       <div id="leases" class="leases"></div>
       <div id="lease-empty" hidden>No 10.0.0.x DHCP leases observed.</div>
+      <h3 class="section-label">MODEM ARP // TELNET 10.0.0.1:8888</h3>
+      <div id="modem-neighbors" class="modem-neighbors"></div>
+      <div id="modem-empty" hidden>Modem Telnet data unavailable.</div>
     </section>
     <aside class="panel">
       <h2 class="panel-title"><span>OUI INVENTORY</span><span>LIVE</span></h2>
@@ -98,6 +102,7 @@ const statusElement = document.getElementById("status");
 const updatedElement = document.getElementById("updated");
 const countElement = document.getElementById("count");
 const leasesElement = document.getElementById("leases");
+const modemNeighborsElement = document.getElementById("modem-neighbors");
 
 function shortVendor(vendor) {
   return vendor.length > 25 ? vendor.slice(0, 22) + "..." : vendor;
@@ -116,13 +121,15 @@ function drawMap(devices) {
   const usb0 = window.networkData.usb0 || {};
   const eth0 = window.networkData.eth0 || {};
   const phone = window.networkData.phone || {};
+  const modem = window.networkData.modem || {};
   const route = window.networkData.default_route || {};
+  const modemEth = (modem.interfaces || {}).eth0 || {};
   const phoneInterfaces = phone.interfaces || {};
   const rndis = phoneInterfaces.rndis0 || {};
   const phoneIp = rndis.ip || usb0.peer || "phone IP unknown";
   const phoneMac = rndis.mac || "phone MAC unknown";
   const node = (icon, name, detail) => `<div class="node"><span class="node-icon">${icon}</span><span class="node-name">${name}</span><span class="node-detail">${escapeHtml(detail).replace(/\n/g, "<br>")}</span></div>`;
-  topology.innerHTML = node("📡", "MODEM", `${eth0.gateway || "gateway unknown"}\nDHCP: 10.0.0.0/24`) +
+  topology.innerHTML = node("📡", "MODEM", `${modemEth.ip || eth0.gateway || "gateway unknown"}\n${modemEth.mac || "MAC unknown"}\nDHCP: 10.0.0.0/24`) +
     `<div class="connector"></div>` +
     node("🥧", "PI / eth0", `${eth0.ip || "IP unknown"}\n${eth0.mac || "MAC unknown"}`) +
     `<div class="connector"></div>` +
@@ -141,6 +148,20 @@ function renderLeases(devices, gateway) {
   document.getElementById("lease-empty").hidden = leases.length > 0;
 }
 
+function renderModem(data) {
+  const modem = data.modem || {};
+  const neighbors = modem.neighbors || [];
+  const modemEth = (modem.interfaces || {}).eth0 || {};
+  modemNeighborsElement.innerHTML = neighbors.map(neighbor => {
+    const known = (data.devices || []).find(device => device.ip === neighbor.ip || device.mac === neighbor.mac);
+    const vendor = known ? known.vendor : (neighbor.vendor || "Unknown vendor");
+    const oui = known ? known.oui : (neighbor.oui || neighbor.mac.replace(/:/g, "").slice(0, 6));
+    return `<article class="lease"><strong>${escapeHtml(neighbor.ip)}</strong><span>${escapeHtml(vendor)} // ${escapeHtml(neighbor.interface || "eth0")}</span><span>OUI ${escapeHtml(oui)} // ${escapeHtml(neighbor.mac)}</span></article>`;
+  }).join("");
+  document.getElementById("modem-empty").hidden = neighbors.length > 0;
+  return modemEth;
+}
+
 function render(data) {
   window.networkData = data;
   const devices = data.devices || [];
@@ -150,6 +171,7 @@ function render(data) {
   updatedElement.textContent = new Date(data.scanned_at).toLocaleTimeString();
   drawMap(devices);
   renderLeases(devices, (data.eth0 || {}).gateway || "10.0.0.1");
+  const modemEth = renderModem(data);
   devicesElement.innerHTML = devices.map(device =>
     `<article class="device"><strong>${escapeHtml(device.ip)}</strong><span>${escapeHtml(device.vendor)}</span><span>OUI ${escapeHtml(device.oui || "------")} // ${escapeHtml(device.mac)}</span></article>`
   ).join("");

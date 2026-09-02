@@ -24,8 +24,13 @@ default_route=$(ip route show default 2>/dev/null | awk 'NR == 1 { print $3 "|" 
 
 phone_neigh=$(adb shell ip neigh 2>/dev/null | tr -d '\r')
 phone_ifconfig=$(adb shell ifconfig 2>/dev/null | tr -d '\r')
+modem_output=""
+if command -v telnet >/dev/null 2>&1 && command -v timeout >/dev/null 2>&1; then
+    modem_commands=$(printf 'arp -n\nifconfig\nexit\n')
+    modem_output=$(printf '%s' "$modem_commands" | timeout 8 telnet 10.0.0.1 8888 2>/dev/null | tr -d '\r')
+fi
 
-SCAN_DATA="$scan_data" SCAN_SOURCE="${scan_source:-none}" USB0_MAC="$usb0_mac" USB0_IP="$usb0_ip" USB0_PEER="$usb0_peer" ETH0_MAC="$eth0_mac" ETH0_IP="$eth0_ip" ETH0_GATEWAY="$eth0_gateway" DEFAULT_ROUTE="$default_route" PHONE_NEIGH="$phone_neigh" PHONE_IFCONFIG="$phone_ifconfig" python3 - <<'PY'
+SCAN_DATA="$scan_data" SCAN_SOURCE="${scan_source:-none}" USB0_MAC="$usb0_mac" USB0_IP="$usb0_ip" USB0_PEER="$usb0_peer" ETH0_MAC="$eth0_mac" ETH0_IP="$eth0_ip" ETH0_GATEWAY="$eth0_gateway" DEFAULT_ROUTE="$default_route" PHONE_NEIGH="$phone_neigh" PHONE_IFCONFIG="$phone_ifconfig" MODEM_OUTPUT="$modem_output" python3 - <<'PY'
 import json
 import os
 import re
@@ -78,7 +83,39 @@ def parse_phone_interfaces(text):
             interfaces[current]["mac"] = mac_match.group(1).upper()
     return interfaces
 
+def parse_legacy_interfaces(text):
+    interfaces = {}
+    current = None
+    for line in text.splitlines():
+        header = re.match(r"^([A-Za-z0-9_.:-]+)\s+Link encap", line.strip())
+        if header:
+            current = header.group(1)
+            interfaces[current] = {}
+            continue
+        if not current:
+            continue
+        ip_match = re.search(r"inet addr:([0-9.]+)", line)
+        mac_match = re.search(r"HWaddr\s+([0-9A-Fa-f:]{17})", line)
+        if ip_match:
+            interfaces[current]["ip"] = ip_match.group(1)
+        if mac_match:
+            interfaces[current]["mac"] = mac_match.group(1).upper()
+    return interfaces
+
+def parse_modem_neighbors(text):
+    neighbors = []
+    for line in text.splitlines():
+        match = re.match(r"^\s*(\d{1,3}(?:\.\d{1,3}){3})\s+\S+\s+([0-9A-Fa-f:]{17})\s+.*\s+(\S+)\s*$", line)
+        if match:
+            neighbors.append({"ip": match.group(1), "mac": match.group(2).upper(), "interface": match.group(3)})
+    return neighbors
+
 phone_interfaces = parse_phone_interfaces(os.environ.get("PHONE_IFCONFIG", ""))
+modem_interfaces = parse_legacy_interfaces(os.environ.get("MODEM_OUTPUT", ""))
+modem_neighbors = parse_modem_neighbors(os.environ.get("MODEM_OUTPUT", ""))
+for neighbor in modem_neighbors:
+    neighbor["oui"] = neighbor["mac"].replace(":", "")[:6]
+    neighbor["vendor"] = vendors.get(neighbor["oui"], "Unknown vendor")
 phone_neighbors = []
 for line in os.environ.get("PHONE_NEIGH", "").splitlines():
     fields = line.split()
@@ -126,6 +163,7 @@ print(json.dumps({
     "eth0": {"ip": os.environ.get("ETH0_IP", ""), "mac": os.environ.get("ETH0_MAC", ""), "gateway": os.environ.get("ETH0_GATEWAY", "")},
     "usb0": {"ip": os.environ.get("USB0_IP", ""), "mac": os.environ.get("USB0_MAC", ""), "peer": os.environ.get("USB0_PEER", "")},
     "phone": {"interfaces": phone_interfaces, "neighbors": phone_neighbors},
+    "modem": {"interfaces": modem_interfaces, "neighbors": modem_neighbors, "reachable": bool(modem_interfaces or modem_neighbors)},
     "default_route": dict(zip(("gateway", "interface"), os.environ.get("DEFAULT_ROUTE", "|").split("|"))),
     "devices": devices,
 }))
