@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OUI Recon | Skunk Works</title>
+<style>
+:root {
+  --ink: #d8f3dc;
+  --muted: #8bb99b;
+  --green: #52d273;
+  --line: #24583a;
+  --panel: rgba(4, 18, 12, 0.9);
+  --amber: #f2c14e;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  min-height: 100vh;
+  color: var(--ink);
+  background: #07130d url("skunk-bg.jpg") center / cover fixed;
+  font-family: "Courier New", monospace;
+}
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: rgba(1, 10, 6, 0.78);
+  pointer-events: none;
+}
+main { position: relative; max-width: 1180px; margin: 0 auto; padding: 28px 20px 44px; }
+header { display: flex; align-items: end; justify-content: space-between; gap: 20px; border-bottom: 1px solid var(--line); padding-bottom: 18px; }
+h1 { margin: 0; color: var(--green); font-size: clamp(22px, 4vw, 36px); letter-spacing: 3px; }
+.subtitle { color: var(--muted); margin: 8px 0 0; font-size: 13px; }
+.actions { display: flex; gap: 8px; }
+button, a { border: 1px solid var(--line); background: #0b2517; color: var(--ink); padding: 9px 13px; font: inherit; text-decoration: none; cursor: pointer; }
+button:hover, a:hover { border-color: var(--green); color: white; }
+.statusbar { display: flex; justify-content: space-between; gap: 16px; color: var(--muted); padding: 14px 0; font-size: 13px; }
+.layout { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 18px; }
+.panel { background: var(--panel); border: 1px solid var(--line); padding: 16px; box-shadow: 0 0 22px rgba(0,0,0,.45); }
+.panel-title { display: flex; justify-content: space-between; align-items: center; margin: 0 0 14px; color: var(--green); font-size: 14px; letter-spacing: 1px; }
+#topology { min-height: 390px; overflow-x: auto; white-space: pre; color: var(--green); line-height: 1.35; font-size: 13px; }
+.device-list { display: grid; gap: 9px; }
+.device { border-left: 3px solid var(--green); padding: 9px 10px; background: rgba(15, 52, 30, .5); }
+.device strong { display: block; color: white; font-size: 15px; }
+.device span { display: block; color: var(--muted); font-size: 12px; margin-top: 4px; overflow-wrap: anywhere; }
+#empty { color: var(--amber); padding: 25px 0; }
+@media (max-width: 760px) {
+  main { padding: 18px 12px 30px; }
+  header, .statusbar { align-items: flex-start; flex-direction: column; }
+  .layout { grid-template-columns: 1fr; }
+  #topology { min-height: 300px; font-size: 11px; }
+}
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div>
+      <h1>OUI RECON</h1>
+      <p class="subtitle">LOCAL NETWORK TOPOLOGY // ARP OBSERVATION</p>
+    </div>
+    <div class="actions"><a href="index.html">[ CONTROL ]</a><button id="refresh" type="button">[ RESCAN ]</button></div>
+  </header>
+  <div class="statusbar"><span id="status">SCANNING...</span><span id="updated">--</span></div>
+  <div class="layout">
+    <section class="panel">
+      <h2 class="panel-title"><span>NETWORK MAP</span><span id="count">0 HOSTS</span></h2>
+      <pre id="topology" aria-live="polite"></pre>
+    </section>
+    <aside class="panel">
+      <h2 class="panel-title"><span>OUI INVENTORY</span><span>LIVE</span></h2>
+      <div id="devices" class="device-list"></div>
+      <div id="empty" hidden>No ARP observations returned.</div>
+    </aside>
+  </div>
+</main>
+<script>
+const topology = document.getElementById("topology");
+const devicesElement = document.getElementById("devices");
+const statusElement = document.getElementById("status");
+const updatedElement = document.getElementById("updated");
+const countElement = document.getElementById("count");
+
+function shortVendor(vendor) {
+  return vendor.length > 25 ? vendor.slice(0, 22) + "..." : vendor;
+}
+
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"]/g, character => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    "\"": "&quot;"
+  })[character]);
+}
+
+function drawMap(devices) {
+  const width = 62;
+  const lines = [
+    "┌" + "─".repeat(width) + "┐",
+    "│  [ PI CONTROLLER ]     192.168.x.x                    │",
+    "│          │                                             │",
+    "│          └───────────────┬─────────────────────────────│",
+  ];
+  if (!devices.length) {
+    lines.push("│                  [ NO HOSTS OBSERVED ]                  │");
+  } else {
+    devices.forEach((device, index) => {
+      const branch = index === devices.length - 1 ? "└" : "├";
+      const label = `${device.ip.padEnd(15)} ${shortVendor(device.vendor)}`.slice(0, width - 5);
+      lines.push(`│          ${branch}── ${label.padEnd(width - 15)}│`);
+    });
+  }
+  lines.push("└" + "─".repeat(width) + "┘");
+  topology.textContent = lines.join("\n");
+}
+
+function render(data) {
+  const devices = data.devices || [];
+  countElement.textContent = `${devices.length} HOST${devices.length === 1 ? "" : "S"}`;
+  statusElement.textContent = `SOURCE: ${(data.source || "ARP").toUpperCase()} // ${devices.length} RESPONSES`;
+  updatedElement.textContent = new Date(data.scanned_at).toLocaleTimeString();
+  drawMap(devices);
+  devicesElement.innerHTML = devices.map(device =>
+    `<article class="device"><strong>${escapeHtml(device.ip)}</strong><span>${escapeHtml(device.vendor)}</span><span>${escapeHtml(device.mac)}</span></article>`
+  ).join("");
+  document.getElementById("empty").hidden = devices.length > 0;
+}
+
+async function scan() {
+  statusElement.textContent = "SCANNING...";
+  try {
+    const response = await fetch("/cgi-bin/oui.cgi?t=" + Date.now(), { cache: "no-store" });
+    if (!response.ok) throw new Error("HTTP " + response.status);
+    render(await response.json());
+  } catch (error) {
+    statusElement.textContent = "SCAN FAILED: " + error.message;
+    topology.textContent = "[ unable to read /cgi-bin/oui.cgi ]";
+  }
+}
+
+document.getElementById("refresh").addEventListener("click", scan);
+scan();
+</script>
+</body>
+</html>
