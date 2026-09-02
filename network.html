@@ -116,7 +116,7 @@ function drawMap(devices) {
   } else {
     devices.forEach((device, index) => {
       const branch = index === devices.length - 1 ? "└" : "├";
-      const label = `${device.ip.padEnd(15)} ${shortVendor(device.device_type)} / ${shortVendor(device.vendor)}`.slice(0, width - 5);
+      const label = `${device.ip.padEnd(15)} ${shortVendor(device.vendor)}`.slice(0, width - 5);
       lines.push(`│          ${branch}── ${label.padEnd(width - 15)}│`);
     });
   }
@@ -133,7 +133,7 @@ function render(data) {
   updatedElement.textContent = new Date(data.scanned_at).toLocaleTimeString();
   drawMap(devices);
   devicesElement.innerHTML = devices.map(device =>
-    `<article class="device"><strong>${escapeHtml(device.ip)} // ${escapeHtml(device.device_type || "Unknown device")}</strong><span>${escapeHtml(device.vendor)}</span><span>OUI ${escapeHtml(device.oui || "------")} // ${escapeHtml(device.mac)}</span></article>`
+    `<article class="device"><strong>${escapeHtml(device.ip)}</strong><span>${escapeHtml(device.vendor)}</span><span>OUI ${escapeHtml(device.oui || "------")} // ${escapeHtml(device.mac)}</span></article>`
   ).join("");
   document.getElementById("empty").hidden = devices.length > 0;
 }
