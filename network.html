@@ -97,18 +97,26 @@ function escapeHtml(value) {
 
 function drawMap(devices) {
   const width = 62;
+  const usb0 = window.networkData.usb0 || {};
+  const route = window.networkData.default_route || {};
+  const phoneIp = route.gateway || usb0.ip || "unknown IP";
   const lines = [
     "┌" + "─".repeat(width) + "┐",
-    "│  [ PI CONTROLLER ]     192.168.x.x                    │",
+    "│  [ PI CONTROLLER ]                                      │",
+    `│  IP: ${(usb0.ip || "unknown IP").padEnd(50)}│`,
+    `│  MAC: ${(usb0.mac || "unknown MAC").padEnd(48)}│`,
     "│          │                                             │",
-    "│          └───────────────┬─────────────────────────────│",
+    `│          └─── 📱 PHONE / GATEWAY ${phoneIp.padEnd(23)}│`,
+    `│                    │  ${String(route.interface || "usb0").padEnd(37)}│`,
+    "│                    └─── ◉ INTERNET  0.0.0.0/0          │",
+    "│                                                        │",
   ];
   if (!devices.length) {
     lines.push("│                  [ NO HOSTS OBSERVED ]                  │");
   } else {
     devices.forEach((device, index) => {
       const branch = index === devices.length - 1 ? "└" : "├";
-      const label = `${device.ip.padEnd(15)} ${shortVendor(device.vendor)}`.slice(0, width - 5);
+      const label = `${device.ip.padEnd(15)} ${shortVendor(device.device_type)} / ${shortVendor(device.vendor)}`.slice(0, width - 5);
       lines.push(`│          ${branch}── ${label.padEnd(width - 15)}│`);
     });
   }
@@ -117,13 +125,14 @@ function drawMap(devices) {
 }
 
 function render(data) {
+  window.networkData = data;
   const devices = data.devices || [];
   countElement.textContent = `${devices.length} HOST${devices.length === 1 ? "" : "S"}`;
   statusElement.textContent = `SOURCE: ${(data.source || "ARP").toUpperCase()} // ${devices.length} RESPONSES`;
   updatedElement.textContent = new Date(data.scanned_at).toLocaleTimeString();
   drawMap(devices);
   devicesElement.innerHTML = devices.map(device =>
-    `<article class="device"><strong>${escapeHtml(device.ip)}</strong><span>${escapeHtml(device.vendor)}</span><span>${escapeHtml(device.mac)}</span></article>`
+    `<article class="device"><strong>${escapeHtml(device.ip)} // ${escapeHtml(device.device_type || "Unknown device")}</strong><span>${escapeHtml(device.vendor)}</span><span>OUI ${escapeHtml(device.oui || "------")} // ${escapeHtml(device.mac)}</span></article>`
   ).join("");
   document.getElementById("empty").hidden = devices.length > 0;
 }
