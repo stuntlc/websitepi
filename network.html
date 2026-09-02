@@ -42,11 +42,12 @@ button:hover, a:hover { border-color: var(--green); color: white; }
 #topology { display: grid; grid-template-columns: repeat(9, minmax(58px, 1fr)); align-items: center; gap: 8px; min-height: 230px; padding: 20px 8px; border: 1px solid var(--line); background: rgba(1, 12, 7, .55); }
 .node { min-width: 0; padding: 12px 8px; border: 1px solid var(--green); background: rgba(15, 52, 30, .75); text-align: center; }
 .node-icon { display: block; font-size: 25px; line-height: 1; margin-bottom: 8px; }
+.raspberry-logo { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 28px; margin-bottom: 8px; border: 2px solid #e85d75; border-radius: 50% 50% 45% 45%; color: #ffd6dc; font-size: 12px; font-weight: bold; letter-spacing: 0; }
 .node-name { display: block; color: white; font-weight: bold; font-size: 13px; }
 .node-detail { display: block; color: var(--muted); font-size: 11px; line-height: 1.35; margin-top: 6px; overflow-wrap: anywhere; }
 .connector { height: 1px; background: var(--green); position: relative; }
 .connector::after { content: ">"; position: absolute; right: -2px; top: -9px; color: var(--green); }
-.ethernet-host { margin-top: 14px; padding: 10px 12px; border: 1px dashed var(--line); color: var(--muted); font-size: 12px; }
+.ethernet-host { display: flex; align-items: center; gap: 10px; margin-top: 14px; padding: 10px 12px; border: 1px dashed var(--line); color: var(--muted); font-size: 12px; }
 .ethernet-host strong { color: white; }
 .section-label { margin: 18px 0 9px; color: var(--green); font-size: 13px; letter-spacing: 1px; }
 .leases { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px; }
@@ -131,12 +132,12 @@ function drawMap(devices) {
   const rndis = phoneInterfaces.rndis0 || {};
   const phoneIp = rndis.ip || usb0.peer || "phone IP unknown";
   const phoneMac = rndis.mac || "phone MAC unknown";
-  const node = (icon, name, detail) => `<div class="node"><span class="node-icon">${icon}</span><span class="node-name">${name}</span><span class="node-detail">${escapeHtml(detail).replace(/\n/g, "<br>")}</span></div>`;
-  topology.innerHTML = node("📡", "MODEM", `${modemEth.ip || eth0.gateway || "gateway unknown"}\n${modemEth.mac || "MAC unknown"}\nDHCP: 10.0.0.0/24`) +
+  const node = (icon, name, detail, iconClass = "node-icon") => `<div class="node"><span class="${iconClass}">${icon}</span><span class="node-name">${name}</span><span class="node-detail">${escapeHtml(detail).replace(/\n/g, "<br>")}</span></div>`;
+  topology.innerHTML = node("NET", "MODEM", `DHCP SERVER // IP ${modemEth.ip || "10.0.0.1"}\n${modemEth.mac || "MAC unknown"}`) +
     `<div class="connector"></div>` +
-    node("🥧", "PI / eth0", `${eth0.ip || "IP unknown"}\n${eth0.mac || "MAC unknown"}`) +
+    node("RPi", "PI / eth0", `${eth0.ip || "IP unknown"}\n${eth0.mac || "MAC unknown"}`, "raspberry-logo") +
     `<div class="connector"></div>` +
-    node("🔌", "PI / usb0", `${usb0.ip || "IP unknown"}\n${usb0.mac || "MAC unknown"}`) +
+    node("RPi", "PI / usb0", `${usb0.ip || "IP unknown"}\n${usb0.mac || "MAC unknown"}`, "raspberry-logo") +
     `<div class="connector"></div>` +
     node("📱", "PHONE / rndis0", `${phoneIp}\n${phoneMac}`) +
     `<div class="connector"></div>` +
@@ -144,7 +145,7 @@ function drawMap(devices) {
   const pi5 = devices.find(device => device.ip === "10.0.0.50");
   const ethernetHost = document.getElementById("ethernet-host");
   if (pi5) {
-    ethernetHost.innerHTML = `↳ <strong>PI 5 / STATIC ETHERNET</strong> ${escapeHtml(pi5.ip)} // ${escapeHtml(pi5.mac)} // ${escapeHtml(pi5.vendor)}`;
+    ethernetHost.innerHTML = `<span class="raspberry-logo">RPi</span><span>↳ <strong>PI 5 / STATIC ETHERNET</strong> ${escapeHtml(pi5.ip)} // ${escapeHtml(pi5.mac)} // ${escapeHtml(pi5.vendor)}<br>CONNECTED TO MODEM LAN</span>`;
     ethernetHost.hidden = false;
   } else {
     ethernetHost.hidden = true;
