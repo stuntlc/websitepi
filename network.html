@@ -43,7 +43,7 @@ button:hover, a:hover { border-color: var(--green); color: white; }
 .node { min-width: 0; padding: 12px 8px; border: 1px solid var(--green); background: rgba(15, 52, 30, .75); text-align: center; }
 .node-icon { display: block; font-size: 25px; line-height: 1; margin-bottom: 8px; }
 .node-name { display: block; color: white; font-weight: bold; font-size: 13px; }
-.node-detail { display: block; color: var(--muted); font-size: 11px; margin-top: 6px; overflow-wrap: anywhere; }
+.node-detail { display: block; color: var(--muted); font-size: 11px; line-height: 1.35; margin-top: 6px; overflow-wrap: anywhere; }
 .connector { height: 1px; background: var(--green); position: relative; }
 .connector::after { content: ">"; position: absolute; right: -2px; top: -9px; color: var(--green); }
 .section-label { margin: 18px 0 9px; color: var(--green); font-size: 13px; letter-spacing: 1px; }
@@ -115,14 +115,20 @@ function escapeHtml(value) {
 function drawMap(devices) {
   const usb0 = window.networkData.usb0 || {};
   const eth0 = window.networkData.eth0 || {};
+  const phone = window.networkData.phone || {};
   const route = window.networkData.default_route || {};
-  const phoneIp = usb0.peer || usb0.ip || "phone IP unknown";
-  const node = (icon, name, detail) => `<div class="node"><span class="node-icon">${icon}</span><span class="node-name">${name}</span><span class="node-detail">${escapeHtml(detail)}</span></div>`;
-  topology.innerHTML = node("📡", "MODEM", eth0.gateway || "gateway unknown") +
+  const phoneInterfaces = phone.interfaces || {};
+  const rndis = phoneInterfaces.rndis0 || {};
+  const phoneIp = rndis.ip || usb0.peer || "phone IP unknown";
+  const phoneMac = rndis.mac || "phone MAC unknown";
+  const node = (icon, name, detail) => `<div class="node"><span class="node-icon">${icon}</span><span class="node-name">${name}</span><span class="node-detail">${escapeHtml(detail).replace(/\n/g, "<br>")}</span></div>`;
+  topology.innerHTML = node("📡", "MODEM", `${eth0.gateway || "gateway unknown"}\nDHCP: 10.0.0.0/24`) +
     `<div class="connector"></div>` +
-    node("🥧", "PI / eth0", `${eth0.ip || "IP unknown"} ${eth0.mac || ""}`) +
+    node("🥧", "PI / eth0", `${eth0.ip || "IP unknown"}\n${eth0.mac || "MAC unknown"}`) +
     `<div class="connector"></div>` +
-    node("📱", "PHONE / usb0", `${phoneIp} ${usb0.mac || ""}`) +
+    node("🔌", "PI / usb0", `${usb0.ip || "IP unknown"}\n${usb0.mac || "MAC unknown"}`) +
+    `<div class="connector"></div>` +
+    node("📱", "PHONE / rndis0", `${phoneIp}\n${phoneMac}`) +
     `<div class="connector"></div>` +
     node("◎", "INTERNET", "0.0.0.0/0");
 }

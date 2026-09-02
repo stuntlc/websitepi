@@ -22,7 +22,10 @@ usb0_peer=$(ip route show dev usb0 2>/dev/null | awk '/via/ {print $3; exit}')
 eth0_gateway=$(ip route show default dev eth0 2>/dev/null | awk 'NR == 1 { print $3; exit }')
 default_route=$(ip route show default 2>/dev/null | awk 'NR == 1 { print $3 "|" $5; exit }')
 
-SCAN_DATA="$scan_data" SCAN_SOURCE="${scan_source:-none}" USB0_MAC="$usb0_mac" USB0_IP="$usb0_ip" USB0_PEER="$usb0_peer" ETH0_MAC="$eth0_mac" ETH0_IP="$eth0_ip" ETH0_GATEWAY="$eth0_gateway" DEFAULT_ROUTE="$default_route" python3 - <<'PY'
+phone_neigh=$(adb shell ip neigh 2>/dev/null | tr -d '\r')
+phone_ifconfig=$(adb shell ifconfig 2>/dev/null | tr -d '\r')
+
+SCAN_DATA="$scan_data" SCAN_SOURCE="${scan_source:-none}" USB0_MAC="$usb0_mac" USB0_IP="$usb0_ip" USB0_PEER="$usb0_peer" ETH0_MAC="$eth0_mac" ETH0_IP="$eth0_ip" ETH0_GATEWAY="$eth0_gateway" DEFAULT_ROUTE="$default_route" PHONE_NEIGH="$phone_neigh" PHONE_IFCONFIG="$phone_ifconfig" python3 - <<'PY'
 import json
 import os
 import re
@@ -55,6 +58,34 @@ for filename in oui_files:
 
 devices = []
 seen = set()
+
+def parse_phone_interfaces(text):
+    interfaces = {}
+    current = None
+    for line in text.splitlines():
+        header = re.match(r"^([A-Za-z0-9_.-]+)\s+Link encap", line.strip())
+        if header:
+            current = header.group(1)
+            interfaces[current] = {}
+            continue
+        if not current:
+            continue
+        ip_match = re.search(r"inet addr:([0-9.]+)", line)
+        mac_match = re.search(r"HWaddr\s+([0-9A-Fa-f:]{17})", line)
+        if ip_match:
+            interfaces[current]["ip"] = ip_match.group(1)
+        if mac_match:
+            interfaces[current]["mac"] = mac_match.group(1).upper()
+    return interfaces
+
+phone_interfaces = parse_phone_interfaces(os.environ.get("PHONE_IFCONFIG", ""))
+phone_neighbors = []
+for line in os.environ.get("PHONE_NEIGH", "").splitlines():
+    fields = line.split()
+    if len(fields) >= 5 and fields[0].count(".") == 3 and "lladdr" in fields:
+        mac_index = fields.index("lladdr") + 1
+        if mac_index < len(fields):
+            phone_neighbors.append({"ip": fields[0], "mac": fields[mac_index].upper(), "interface": fields[2], "state": fields[-1]})
 
 def device_type(vendor):
     name = vendor.lower()
@@ -94,6 +125,7 @@ print(json.dumps({
     "oui_database": database_files[0] if database_files else "none",
     "eth0": {"ip": os.environ.get("ETH0_IP", ""), "mac": os.environ.get("ETH0_MAC", ""), "gateway": os.environ.get("ETH0_GATEWAY", "")},
     "usb0": {"ip": os.environ.get("USB0_IP", ""), "mac": os.environ.get("USB0_MAC", ""), "peer": os.environ.get("USB0_PEER", "")},
+    "phone": {"interfaces": phone_interfaces, "neighbors": phone_neighbors},
     "default_route": dict(zip(("gateway", "interface"), os.environ.get("DEFAULT_ROUTE", "|").split("|"))),
     "devices": devices,
 }))
