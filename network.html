@@ -128,7 +128,8 @@ function render(data) {
   window.networkData = data;
   const devices = data.devices || [];
   countElement.textContent = `${devices.length} HOST${devices.length === 1 ? "" : "S"}`;
-  statusElement.textContent = `SOURCE: ${(data.source || "ARP").toUpperCase()} // ${devices.length} RESPONSES`;
+  const database = data.oui_database && data.oui_database !== "none" ? "OUI DB: READY" : "OUI DB: NOT FOUND";
+  statusElement.textContent = `SOURCE: ${(data.source || "ARP").toUpperCase()} // ${devices.length} RESPONSES // ${database}`;
   updatedElement.textContent = new Date(data.scanned_at).toLocaleTimeString();
   drawMap(devices);
   devicesElement.innerHTML = devices.map(device =>

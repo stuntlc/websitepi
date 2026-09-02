@@ -4,16 +4,21 @@ printf 'Content-Type: application/json\r\n\r\n'
 if command -v arp-scan >/dev/null 2>&1; then
     scan_data=$(arp-scan --localnet 2>/dev/null | awk '/^[0-9]+\./ { vendor=$0; sub(/^[^ ]+[[:space:]]+[^ ]+[[:space:]]+/, "", vendor); print $1 "|" $2 "|" vendor }')
     scan_source="arp-scan"
-else
+fi
+if [ -z "$scan_data" ] && command -v arp >/dev/null 2>&1; then
     scan_data=$(arp -n 2>/dev/null | awk 'NR > 1 && $1 ~ /^[0-9]+\./ && $3 ~ /:/ { print $1 "|" $3 "|" }')
     scan_source="arp"
+fi
+if [ -z "$scan_data" ] && command -v ip >/dev/null 2>&1; then
+    scan_data=$(ip neigh show 2>/dev/null | awk '$1 ~ /^[0-9]+\./ { for (field = 1; field <= NF; field++) if ($field == "lladdr") { print $1 "|" $(field + 1) "|"; break } }')
+    scan_source="ip-neigh"
 fi
 
 usb0_mac=$(ip -o link show usb0 2>/dev/null | awk '{for (field = 1; field <= NF; field++) if ($field == "link/ether") { print $(field + 1); exit }}')
 usb0_ip=$(ip -o -4 addr show dev usb0 2>/dev/null | awk '{print $4; exit}')
 default_route=$(ip route show default 2>/dev/null | awk 'NR == 1 { print $3 "|" $5; exit }')
 
-SCAN_DATA="$scan_data" SCAN_SOURCE="$scan_source" USB0_MAC="$usb0_mac" USB0_IP="$usb0_ip" DEFAULT_ROUTE="$default_route" python3 - <<'PY'
+SCAN_DATA="$scan_data" SCAN_SOURCE="${scan_source:-none}" USB0_MAC="$usb0_mac" USB0_IP="$usb0_ip" DEFAULT_ROUTE="$default_route" python3 - <<'PY'
 import json
 import os
 import re
@@ -26,8 +31,10 @@ oui_files = (
     "/usr/share/nmap/nmap-mac-prefixes",
 )
 vendors = {}
+database_files = []
 for filename in oui_files:
     try:
+        loaded = False
         with open(filename, encoding="utf-8", errors="ignore") as oui_file:
             for line in oui_file:
                 ieee_match = re.match(r"^\s*([0-9A-Fa-f]{6})\s+\(base 16\)\s+(.+?)\s*$", line)
@@ -36,6 +43,9 @@ for filename in oui_files:
                 if match:
                     prefix = re.sub(r"[-:]", "", match.group(1)).upper()[:6]
                     vendors.setdefault(prefix, match.group(2).strip())
+                    loaded = True
+        if loaded:
+            database_files.append(filename)
     except OSError:
         continue
 
@@ -77,6 +87,7 @@ devices.sort(key=lambda device: tuple(int(part) for part in device["ip"].split("
 print(json.dumps({
     "scanned_at": datetime.now(timezone.utc).isoformat(),
     "source": os.environ.get("SCAN_SOURCE", "arp"),
+    "oui_database": database_files[0] if database_files else "none",
     "usb0": {"ip": os.environ.get("USB0_IP", ""), "mac": os.environ.get("USB0_MAC", "")},
     "default_route": dict(zip(("gateway", "interface"), os.environ.get("DEFAULT_ROUTE", "|").split("|"))),
     "devices": devices,
