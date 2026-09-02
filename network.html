@@ -39,17 +39,30 @@ button:hover, a:hover { border-color: var(--green); color: white; }
 .layout { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 18px; }
 .panel { background: var(--panel); border: 1px solid var(--line); padding: 16px; box-shadow: 0 0 22px rgba(0,0,0,.45); }
 .panel-title { display: flex; justify-content: space-between; align-items: center; margin: 0 0 14px; color: var(--green); font-size: 14px; letter-spacing: 1px; }
-#topology { min-height: 390px; overflow-x: auto; white-space: pre; color: var(--green); line-height: 1.35; font-size: 13px; }
+#topology { display: grid; grid-template-columns: repeat(7, minmax(72px, 1fr)); align-items: center; gap: 8px; min-height: 230px; padding: 20px 8px; border: 1px solid var(--line); background: rgba(1, 12, 7, .55); }
+.node { min-width: 0; padding: 12px 8px; border: 1px solid var(--green); background: rgba(15, 52, 30, .75); text-align: center; }
+.node-icon { display: block; font-size: 25px; line-height: 1; margin-bottom: 8px; }
+.node-name { display: block; color: white; font-weight: bold; font-size: 13px; }
+.node-detail { display: block; color: var(--muted); font-size: 11px; margin-top: 6px; overflow-wrap: anywhere; }
+.connector { height: 1px; background: var(--green); position: relative; }
+.connector::after { content: ">"; position: absolute; right: -2px; top: -9px; color: var(--green); }
+.section-label { margin: 18px 0 9px; color: var(--green); font-size: 13px; letter-spacing: 1px; }
+.leases { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px; }
+.lease { padding: 9px 10px; border-left: 3px solid var(--green); background: rgba(15, 52, 30, .5); }
+.lease strong { display: block; color: white; font-size: 13px; }
+.lease span { display: block; color: var(--muted); font-size: 11px; margin-top: 4px; overflow-wrap: anywhere; }
 .device-list { display: grid; gap: 9px; }
 .device { border-left: 3px solid var(--green); padding: 9px 10px; background: rgba(15, 52, 30, .5); }
 .device strong { display: block; color: white; font-size: 15px; }
 .device span { display: block; color: var(--muted); font-size: 12px; margin-top: 4px; overflow-wrap: anywhere; }
-#empty { color: var(--amber); padding: 25px 0; }
+#empty, #lease-empty { color: var(--amber); padding: 25px 0; }
 @media (max-width: 760px) {
   main { padding: 18px 12px 30px; }
   header, .statusbar { align-items: flex-start; flex-direction: column; }
   .layout { grid-template-columns: 1fr; }
-  #topology { min-height: 300px; font-size: 11px; }
+  #topology { grid-template-columns: 1fr; min-height: 0; }
+  .connector { width: 1px; height: 18px; margin: 0 auto; }
+  .connector::after { content: "v"; right: -4px; top: 5px; }
 }
 </style>
 </head>
@@ -66,7 +79,10 @@ button:hover, a:hover { border-color: var(--green); color: white; }
   <div class="layout">
     <section class="panel">
       <h2 class="panel-title"><span>NETWORK MAP</span><span id="count">0 HOSTS</span></h2>
-      <pre id="topology" aria-live="polite"></pre>
+      <div id="topology" aria-live="polite"></div>
+      <h3 class="section-label">DHCP LEASES // MODEM SWITCH // 10.0.0.0/24</h3>
+      <div id="leases" class="leases"></div>
+      <div id="lease-empty" hidden>No 10.0.0.x DHCP leases observed.</div>
     </section>
     <aside class="panel">
       <h2 class="panel-title"><span>OUI INVENTORY</span><span>LIVE</span></h2>
@@ -81,6 +97,7 @@ const devicesElement = document.getElementById("devices");
 const statusElement = document.getElementById("status");
 const updatedElement = document.getElementById("updated");
 const countElement = document.getElementById("count");
+const leasesElement = document.getElementById("leases");
 
 function shortVendor(vendor) {
   return vendor.length > 25 ? vendor.slice(0, 22) + "..." : vendor;
@@ -96,32 +113,26 @@ function escapeHtml(value) {
 }
 
 function drawMap(devices) {
-  const width = 62;
   const usb0 = window.networkData.usb0 || {};
+  const eth0 = window.networkData.eth0 || {};
   const route = window.networkData.default_route || {};
-  const phoneIp = route.gateway || usb0.ip || "unknown IP";
-  const lines = [
-    "┌" + "─".repeat(width) + "┐",
-    "│  [ PI CONTROLLER ]                                      │",
-    `│  IP: ${(usb0.ip || "unknown IP").padEnd(50)}│`,
-    `│  MAC: ${(usb0.mac || "unknown MAC").padEnd(48)}│`,
-    "│          │                                             │",
-    `│          └─── 📱 PHONE / GATEWAY ${phoneIp.padEnd(23)}│`,
-    `│                    │  ${String(route.interface || "usb0").padEnd(37)}│`,
-    "│                    └─── ◉ INTERNET  0.0.0.0/0          │",
-    "│                                                        │",
-  ];
-  if (!devices.length) {
-    lines.push("│                  [ NO HOSTS OBSERVED ]                  │");
-  } else {
-    devices.forEach((device, index) => {
-      const branch = index === devices.length - 1 ? "└" : "├";
-      const label = `${device.ip.padEnd(15)} ${shortVendor(device.vendor)}`.slice(0, width - 5);
-      lines.push(`│          ${branch}── ${label.padEnd(width - 15)}│`);
-    });
-  }
-  lines.push("└" + "─".repeat(width) + "┘");
-  topology.textContent = lines.join("\n");
+  const phoneIp = usb0.peer || usb0.ip || "phone IP unknown";
+  const node = (icon, name, detail) => `<div class="node"><span class="node-icon">${icon}</span><span class="node-name">${name}</span><span class="node-detail">${escapeHtml(detail)}</span></div>`;
+  topology.innerHTML = node("📡", "MODEM", eth0.gateway || "gateway unknown") +
+    `<div class="connector"></div>` +
+    node("🥧", "PI / eth0", `${eth0.ip || "IP unknown"} ${eth0.mac || ""}`) +
+    `<div class="connector"></div>` +
+    node("📱", "PHONE / usb0", `${phoneIp} ${usb0.mac || ""}`) +
+    `<div class="connector"></div>` +
+    node("◎", "INTERNET", "0.0.0.0/0");
+}
+
+function renderLeases(devices, gateway) {
+  const leases = devices.filter(device => device.ip.startsWith("10.0.0."));
+  leasesElement.innerHTML = leases.map(device =>
+    `<article class="lease"><strong>${escapeHtml(device.ip)}${device.ip === gateway ? " // MODEM" : ""}</strong><span>${escapeHtml(device.vendor)}</span><span>OUI ${escapeHtml(device.oui || "------")} // ${escapeHtml(device.mac)}</span></article>`
+  ).join("");
+  document.getElementById("lease-empty").hidden = leases.length > 0;
 }
 
 function render(data) {
@@ -132,6 +143,7 @@ function render(data) {
   statusElement.textContent = `SOURCE: ${(data.source || "ARP").toUpperCase()} // ${devices.length} RESPONSES // ${database}`;
   updatedElement.textContent = new Date(data.scanned_at).toLocaleTimeString();
   drawMap(devices);
+  renderLeases(devices, (data.eth0 || {}).gateway || "10.0.0.1");
   devicesElement.innerHTML = devices.map(device =>
     `<article class="device"><strong>${escapeHtml(device.ip)}</strong><span>${escapeHtml(device.vendor)}</span><span>OUI ${escapeHtml(device.oui || "------")} // ${escapeHtml(device.mac)}</span></article>`
   ).join("");

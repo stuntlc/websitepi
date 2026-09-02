@@ -16,9 +16,13 @@ fi
 
 usb0_mac=$(ip -o link show usb0 2>/dev/null | awk '{for (field = 1; field <= NF; field++) if ($field == "link/ether") { print $(field + 1); exit }}')
 usb0_ip=$(ip -o -4 addr show dev usb0 2>/dev/null | awk '{print $4; exit}')
+eth0_mac=$(ip -o link show eth0 2>/dev/null | awk '{for (field = 1; field <= NF; field++) if ($field == "link/ether") { print $(field + 1); exit }}')
+eth0_ip=$(ip -o -4 addr show dev eth0 2>/dev/null | awk '{print $4; exit}')
+usb0_peer=$(ip route show dev usb0 2>/dev/null | awk '/via/ {print $3; exit}')
+eth0_gateway=$(ip route show default dev eth0 2>/dev/null | awk 'NR == 1 { print $3; exit }')
 default_route=$(ip route show default 2>/dev/null | awk 'NR == 1 { print $3 "|" $5; exit }')
 
-SCAN_DATA="$scan_data" SCAN_SOURCE="${scan_source:-none}" USB0_MAC="$usb0_mac" USB0_IP="$usb0_ip" DEFAULT_ROUTE="$default_route" python3 - <<'PY'
+SCAN_DATA="$scan_data" SCAN_SOURCE="${scan_source:-none}" USB0_MAC="$usb0_mac" USB0_IP="$usb0_ip" USB0_PEER="$usb0_peer" ETH0_MAC="$eth0_mac" ETH0_IP="$eth0_ip" ETH0_GATEWAY="$eth0_gateway" DEFAULT_ROUTE="$default_route" python3 - <<'PY'
 import json
 import os
 import re
@@ -88,7 +92,8 @@ print(json.dumps({
     "scanned_at": datetime.now(timezone.utc).isoformat(),
     "source": os.environ.get("SCAN_SOURCE", "arp"),
     "oui_database": database_files[0] if database_files else "none",
-    "usb0": {"ip": os.environ.get("USB0_IP", ""), "mac": os.environ.get("USB0_MAC", "")},
+    "eth0": {"ip": os.environ.get("ETH0_IP", ""), "mac": os.environ.get("ETH0_MAC", ""), "gateway": os.environ.get("ETH0_GATEWAY", "")},
+    "usb0": {"ip": os.environ.get("USB0_IP", ""), "mac": os.environ.get("USB0_MAC", ""), "peer": os.environ.get("USB0_PEER", "")},
     "default_route": dict(zip(("gateway", "interface"), os.environ.get("DEFAULT_ROUTE", "|").split("|"))),
     "devices": devices,
 }))
