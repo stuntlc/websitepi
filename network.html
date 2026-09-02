@@ -46,6 +46,8 @@ button:hover, a:hover { border-color: var(--green); color: white; }
 .node-detail { display: block; color: var(--muted); font-size: 11px; line-height: 1.35; margin-top: 6px; overflow-wrap: anywhere; }
 .connector { height: 1px; background: var(--green); position: relative; }
 .connector::after { content: ">"; position: absolute; right: -2px; top: -9px; color: var(--green); }
+.ethernet-host { margin-top: 14px; padding: 10px 12px; border: 1px dashed var(--line); color: var(--muted); font-size: 12px; }
+.ethernet-host strong { color: white; }
 .section-label { margin: 18px 0 9px; color: var(--green); font-size: 13px; letter-spacing: 1px; }
 .leases { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px; }
 .lease { padding: 9px 10px; border-left: 3px solid var(--green); background: rgba(15, 52, 30, .5); }
@@ -81,6 +83,7 @@ button:hover, a:hover { border-color: var(--green); color: white; }
     <section class="panel">
       <h2 class="panel-title"><span>NETWORK MAP</span><span id="count">0 HOSTS</span></h2>
       <div id="topology" aria-live="polite"></div>
+      <div id="ethernet-host" class="ethernet-host" hidden></div>
       <h3 class="section-label">DHCP LEASES // MODEM SWITCH // 10.0.0.0/24</h3>
       <div id="leases" class="leases"></div>
       <div id="lease-empty" hidden>No 10.0.0.x DHCP leases observed.</div>
@@ -138,12 +141,20 @@ function drawMap(devices) {
     node("📱", "PHONE / rndis0", `${phoneIp}\n${phoneMac}`) +
     `<div class="connector"></div>` +
     node("◎", "INTERNET", "0.0.0.0/0");
+  const pi5 = devices.find(device => device.ip === "10.0.0.50");
+  const ethernetHost = document.getElementById("ethernet-host");
+  if (pi5) {
+    ethernetHost.innerHTML = `↳ <strong>PI 5 / STATIC ETHERNET</strong> ${escapeHtml(pi5.ip)} // ${escapeHtml(pi5.mac)} // ${escapeHtml(pi5.vendor)}`;
+    ethernetHost.hidden = false;
+  } else {
+    ethernetHost.hidden = true;
+  }
 }
 
 function renderLeases(devices, gateway) {
   const leases = devices.filter(device => device.ip.startsWith("10.0.0."));
   leasesElement.innerHTML = leases.map(device =>
-    `<article class="lease"><strong>${escapeHtml(device.ip)}${device.ip === gateway ? " // MODEM" : ""}</strong><span>${escapeHtml(device.vendor)}</span><span>OUI ${escapeHtml(device.oui || "------")} // ${escapeHtml(device.mac)}</span></article>`
+    `<article class="lease"><strong>${escapeHtml(device.ip)}${device.ip === gateway ? " // MODEM" : ""}${device.role ? " // " + escapeHtml(device.role) : ""}</strong><span>${escapeHtml(device.vendor)}</span><span>OUI ${escapeHtml(device.oui || "------")} // ${escapeHtml(device.mac)}</span></article>`
   ).join("");
   document.getElementById("lease-empty").hidden = leases.length > 0;
 }
@@ -174,7 +185,7 @@ function render(data) {
   renderLeases(devices, (data.eth0 || {}).gateway || "10.0.0.1");
   const modemEth = renderModem(data);
   devicesElement.innerHTML = devices.map(device =>
-    `<article class="device"><strong>${escapeHtml(device.ip)}</strong><span>${escapeHtml(device.vendor)}</span><span>OUI ${escapeHtml(device.oui || "------")} // ${escapeHtml(device.mac)}</span></article>`
+    `<article class="device"><strong>${escapeHtml(device.ip)}${device.role ? " // " + escapeHtml(device.role) : ""}</strong><span>${escapeHtml(device.vendor)}</span><span>OUI ${escapeHtml(device.oui || "------")} // ${escapeHtml(device.mac)}</span></article>`
   ).join("");
   document.getElementById("empty").hidden = devices.length > 0;
 }

@@ -33,7 +33,10 @@ elif command -v busybox >/dev/null 2>&1; then
     timeout_command="busybox timeout"
 fi
 if command -v telnet >/dev/null 2>&1 && [ -n "$timeout_command" ]; then
-    modem_commands=$(printf 'arp -n\nifconfig\nexit\n')
+    modem_commands='arp -n
+ifconfig eth0
+exit
+'
     modem_output=$(printf '%s' "$modem_commands" | $timeout_command 8 telnet 10.0.0.1 8888 2>/dev/null | tr -d '\r')
     [ -n "$modem_output" ] && modem_status="connected"
 elif ! command -v telnet >/dev/null 2>&1; then
@@ -165,7 +168,8 @@ for row in os.environ.get("SCAN_DATA", "").splitlines():
     seen.add(mac)
     oui = mac.replace(":", "")[:6]
     vendor = vendor.strip() or vendors.get(oui, "Unknown vendor")
-    devices.append({"ip": ip, "mac": mac, "oui": oui, "vendor": vendor, "device_type": device_type(vendor)})
+    role = "Pi 5 / static Ethernet" if ip == "10.0.0.50" else ""
+    devices.append({"ip": ip, "mac": mac, "oui": oui, "vendor": vendor, "device_type": device_type(vendor), "role": role})
 
 devices.sort(key=lambda device: tuple(int(part) for part in device["ip"].split(".")))
 print(json.dumps({
