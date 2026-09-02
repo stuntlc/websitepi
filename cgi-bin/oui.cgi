@@ -25,12 +25,24 @@ default_route=$(ip route show default 2>/dev/null | awk 'NR == 1 { print $3 "|" 
 phone_neigh=$(adb shell ip neigh 2>/dev/null | tr -d '\r')
 phone_ifconfig=$(adb shell ifconfig 2>/dev/null | tr -d '\r')
 modem_output=""
-if command -v telnet >/dev/null 2>&1 && command -v timeout >/dev/null 2>&1; then
+modem_status="unavailable"
+timeout_command=""
+if command -v timeout >/dev/null 2>&1; then
+    timeout_command=$(command -v timeout)
+elif command -v busybox >/dev/null 2>&1; then
+    timeout_command="busybox timeout"
+fi
+if command -v telnet >/dev/null 2>&1 && [ -n "$timeout_command" ]; then
     modem_commands=$(printf 'arp -n\nifconfig\nexit\n')
-    modem_output=$(printf '%s' "$modem_commands" | timeout 8 telnet 10.0.0.1 8888 2>/dev/null | tr -d '\r')
+    modem_output=$(printf '%s' "$modem_commands" | $timeout_command 8 telnet 10.0.0.1 8888 2>/dev/null | tr -d '\r')
+    [ -n "$modem_output" ] && modem_status="connected"
+elif ! command -v telnet >/dev/null 2>&1; then
+    modem_status="telnet unavailable"
+else
+    modem_status="timeout unavailable"
 fi
 
-SCAN_DATA="$scan_data" SCAN_SOURCE="${scan_source:-none}" USB0_MAC="$usb0_mac" USB0_IP="$usb0_ip" USB0_PEER="$usb0_peer" ETH0_MAC="$eth0_mac" ETH0_IP="$eth0_ip" ETH0_GATEWAY="$eth0_gateway" DEFAULT_ROUTE="$default_route" PHONE_NEIGH="$phone_neigh" PHONE_IFCONFIG="$phone_ifconfig" MODEM_OUTPUT="$modem_output" python3 - <<'PY'
+SCAN_DATA="$scan_data" SCAN_SOURCE="${scan_source:-none}" USB0_MAC="$usb0_mac" USB0_IP="$usb0_ip" USB0_PEER="$usb0_peer" ETH0_MAC="$eth0_mac" ETH0_IP="$eth0_ip" ETH0_GATEWAY="$eth0_gateway" DEFAULT_ROUTE="$default_route" PHONE_NEIGH="$phone_neigh" PHONE_IFCONFIG="$phone_ifconfig" MODEM_OUTPUT="$modem_output" MODEM_STATUS="$modem_status" python3 - <<'PY'
 import json
 import os
 import re
@@ -163,7 +175,7 @@ print(json.dumps({
     "eth0": {"ip": os.environ.get("ETH0_IP", ""), "mac": os.environ.get("ETH0_MAC", ""), "gateway": os.environ.get("ETH0_GATEWAY", "")},
     "usb0": {"ip": os.environ.get("USB0_IP", ""), "mac": os.environ.get("USB0_MAC", ""), "peer": os.environ.get("USB0_PEER", "")},
     "phone": {"interfaces": phone_interfaces, "neighbors": phone_neighbors},
-    "modem": {"interfaces": modem_interfaces, "neighbors": modem_neighbors, "reachable": bool(modem_interfaces or modem_neighbors)},
+    "modem": {"interfaces": modem_interfaces, "neighbors": modem_neighbors, "reachable": bool(modem_interfaces or modem_neighbors), "status": os.environ.get("MODEM_STATUS", "unavailable")},
     "default_route": dict(zip(("gateway", "interface"), os.environ.get("DEFAULT_ROUTE", "|").split("|"))),
     "devices": devices,
 }))

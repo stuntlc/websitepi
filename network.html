@@ -39,7 +39,7 @@ button:hover, a:hover { border-color: var(--green); color: white; }
 .layout { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 18px; }
 .panel { background: var(--panel); border: 1px solid var(--line); padding: 16px; box-shadow: 0 0 22px rgba(0,0,0,.45); }
 .panel-title { display: flex; justify-content: space-between; align-items: center; margin: 0 0 14px; color: var(--green); font-size: 14px; letter-spacing: 1px; }
-#topology { display: grid; grid-template-columns: repeat(7, minmax(72px, 1fr)); align-items: center; gap: 8px; min-height: 230px; padding: 20px 8px; border: 1px solid var(--line); background: rgba(1, 12, 7, .55); }
+#topology { display: grid; grid-template-columns: repeat(9, minmax(58px, 1fr)); align-items: center; gap: 8px; min-height: 230px; padding: 20px 8px; border: 1px solid var(--line); background: rgba(1, 12, 7, .55); }
 .node { min-width: 0; padding: 12px 8px; border: 1px solid var(--green); background: rgba(15, 52, 30, .75); text-align: center; }
 .node-icon { display: block; font-size: 25px; line-height: 1; margin-bottom: 8px; }
 .node-name { display: block; color: white; font-weight: bold; font-size: 13px; }
@@ -158,6 +158,7 @@ function renderModem(data) {
     const oui = known ? known.oui : (neighbor.oui || neighbor.mac.replace(/:/g, "").slice(0, 6));
     return `<article class="lease"><strong>${escapeHtml(neighbor.ip)}</strong><span>${escapeHtml(vendor)} // ${escapeHtml(neighbor.interface || "eth0")}</span><span>OUI ${escapeHtml(oui)} // ${escapeHtml(neighbor.mac)}</span></article>`;
   }).join("");
+  document.getElementById("modem-empty").textContent = neighbors.length > 0 ? "" : `Modem Telnet ${modem.status || "unavailable"}.`;
   document.getElementById("modem-empty").hidden = neighbors.length > 0;
   return modemEth;
 }
