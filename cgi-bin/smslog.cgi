@@ -1,4 +1,5 @@
 #!/bin/bash
 echo "Content-Type: text/plain"
 echo ""
-tail -n 20 /home/q/websd/logs/sms.log
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+tail -n 20 "$SCRIPT_DIR/logs/sms.log"

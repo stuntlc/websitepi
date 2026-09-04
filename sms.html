@@ -1,9 +1,109 @@
-<h2>SMS Actions</h2>
-
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SMS Console | Skunk Works</title>
+<style>
+:root { --ink: #d8f3dc; --muted: #8bb99b; --green: #52d273; --line: #24583a; --panel: rgba(4, 18, 12, .9); --amber: #f2c14e; --red: #ee6b72; }
+* { box-sizing: border-box; }
+body { margin: 0; min-height: 100vh; color: var(--ink); background: #07130d url("skunk-bg.jpg") center / cover fixed; font-family: "Courier New", monospace; }
+body::before { content: ""; position: fixed; inset: 0; background: rgba(1, 10, 6, .78); pointer-events: none; }
+main { position: relative; max-width: 1180px; margin: 0 auto; padding: 28px 20px 44px; }
+header { display: flex; align-items: end; justify-content: space-between; gap: 20px; border-bottom: 1px solid var(--line); padding-bottom: 18px; }
+h1 { margin: 0; color: var(--green); font-size: clamp(22px, 4vw, 36px); letter-spacing: 3px; }
+.subtitle { color: var(--muted); margin: 8px 0 0; font-size: 13px; }
+.actions, .form-actions { display: flex; gap: 8px; }
+button, a { border: 1px solid var(--line); background: #0b2517; color: var(--ink); padding: 9px 13px; font: inherit; text-decoration: none; cursor: pointer; }
+button:hover, a:hover { border-color: var(--green); color: white; }
+.statusbar { display: flex; justify-content: space-between; gap: 16px; color: var(--muted); padding: 14px 0; font-size: 13px; }
+.layout { display: grid; grid-template-columns: 360px minmax(0, 1fr); gap: 18px; }
+.panel { background: var(--panel); border: 1px solid var(--line); padding: 16px; box-shadow: 0 0 22px rgba(0,0,0,.45); }
+.panel-title { display: flex; justify-content: space-between; align-items: center; margin: 0 0 14px; color: var(--green); font-size: 14px; letter-spacing: 1px; }
+label { display: block; color: var(--muted); font-size: 12px; margin: 14px 0 6px; }
+input, textarea { width: 100%; border: 1px solid var(--line); background: rgba(1, 12, 7, .8); color: white; padding: 10px; font: inherit; }
+textarea { min-height: 150px; resize: vertical; }
+input:focus, textarea:focus { outline: 1px solid var(--green); border-color: var(--green); }
+.form-actions { align-items: center; margin-top: 14px; }
+.send { border-color: var(--green); color: white; }
+#send-status { color: var(--muted); font-size: 12px; }
+#send-status.error { color: var(--red); }
+.log { min-height: 230px; max-height: 48vh; overflow: auto; margin: 0; padding: 12px; border: 1px solid var(--line); background: rgba(1, 12, 7, .55); color: var(--ink); white-space: pre-wrap; overflow-wrap: anywhere; }
+.section-label { margin: 18px 0 9px; color: var(--green); font-size: 13px; letter-spacing: 1px; }
+@media (max-width: 760px) { main { padding: 18px 12px 30px; } header, .statusbar { align-items: flex-start; flex-direction: column; } .layout { grid-template-columns: 1fr; } .actions { width: 100%; } }
+</style>
+</head>
+<body>
+<main>
+    <header>
+        <div><h1>SMS CONSOLE</h1><p class="subtitle">ANDROID MODEM // SEND, RECEIVE, OBSERVE</p></div>
+        <div class="actions"><a href="index.html">[ CONTROL ]</a><button id="refresh" type="button">[ REFRESH ]</button></div>
+    </header>
+    <div class="statusbar"><span id="status">MODEM READY</span><span id="updated">--</span></div>
+    <div class="layout">
+        <section class="panel">
+            <h2 class="panel-title"><span>COMPOSE SMS</span><span>OUTBOUND</span></h2>
+            <form id="send-form">
+                <label for="number">RECIPIENT NUMBER</label>
+                <input id="number" name="number" type="tel" inputmode="tel" autocomplete="tel" placeholder="+15551234567" required maxlength="32">
+                <label for="message">MESSAGE</label>
+                <textarea id="message" name="message" maxlength="1000" placeholder="Type your message..." required></textarea>
+                <div class="form-actions"><button class="send" type="submit">[ SEND SMS ]</button><span id="send-status" aria-live="polite"></span></div>
+            </form>
+        </section>
+        <section class="panel">
+            <h2 class="panel-title"><span>SMS MONITOR</span><span>LIVE</span></h2>
+            <h3 class="section-label">LATEST DEVICE MESSAGE</h3>
+            <pre id="inbox" class="log">Loading...</pre>
+            <h3 class="section-label">MESSAGE LOG</h3>
+            <pre id="log" class="log">Loading...</pre>
+        </section>
+    </div>
+</main>
 <script>
-function sendAction(action) {
-    fetch('/cgi-bin/sms.cgi?' + action)
-        .then(r => r.text())
-        .then(t => alert(t));
+const statusElement = document.getElementById("status");
+const updatedElement = document.getElementById("updated");
+const inboxElement = document.getElementById("inbox");
+const logElement = document.getElementById("log");
+const sendStatus = document.getElementById("send-status");
+
+async function loadMessages() {
+    try {
+        const [inboxResponse, logResponse] = await Promise.all([
+            fetch("/cgi-bin/sms-read.cgi?t=" + Date.now(), { cache: "no-store" }),
+            fetch("/cgi-bin/smslog.cgi?t=" + Date.now(), { cache: "no-store" })
+        ]);
+        if (!inboxResponse.ok || !logResponse.ok) throw new Error("HTTP response error");
+        inboxElement.textContent = await inboxResponse.text();
+        logElement.textContent = await logResponse.text();
+        statusElement.textContent = "MODEM ONLINE // LOG STREAMING";
+        updatedElement.textContent = new Date().toLocaleTimeString();
+    } catch (error) {
+        statusElement.textContent = "READ FAILED: " + error.message;
+    }
 }
+
+document.getElementById("send-form").addEventListener("submit", async event => {
+    event.preventDefault();
+    sendStatus.className = "";
+    sendStatus.textContent = "SENDING...";
+    const formData = new URLSearchParams(new FormData(event.target));
+    try {
+        const response = await fetch("/cgi-bin/sms-send.cgi", { method: "POST", body: formData });
+        const text = await response.text();
+        if (!response.ok) throw new Error(text || "Send failed");
+        sendStatus.textContent = text;
+        event.target.message.value = "";
+        loadMessages();
+    } catch (error) {
+        sendStatus.className = "error";
+        sendStatus.textContent = error.message;
+    }
+});
+
+document.getElementById("refresh").addEventListener("click", loadMessages);
+loadMessages();
+setInterval(loadMessages, 5000);
 </script>
+</body>
+</html>
