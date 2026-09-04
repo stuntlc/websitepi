@@ -4,6 +4,21 @@ NUMBER="$1"
 shift
 MESSAGE="$*"
 
+ADB="${ADB:-adb}"
+COMPOSE_X="${SMS_COMPOSE_X:-340}"
+COMPOSE_Y="${SMS_COMPOSE_Y:-1419}"
+SEND_X="${SMS_SEND_X:-648}"
+SEND_Y="${SMS_SEND_Y:-1419}"
+WAIT_AFTER_LAUNCH="${SMS_WAIT_AFTER_LAUNCH:-2}"
+WAIT_AFTER_INPUT="${SMS_WAIT_AFTER_INPUT:-1}"
+
+run_adb() {
+    if ! "$ADB" "$@"; then
+        echo "ADB command failed: $*"
+        exit 1
+    fi
+}
+
 if [ -z "$NUMBER" ] || [ -z "$MESSAGE" ]; then
     echo "Usage: $0 <number> <message>"
     exit 1
@@ -11,38 +26,40 @@ fi
 
 echo "Sending SMS to $NUMBER: $MESSAGE"
 
+run_adb wait-for-device
+
 ENCODED_MESSAGE=$(echo "$MESSAGE" | sed 's/ /%s/g')
 
 # Reset Messaging
-adb shell am force-stop com.android.messaging
-sleep 0.5
+run_adb shell am force-stop com.android.messaging
+sleep 1
 
 # Open compose window
-adb shell am start -a android.intent.action.SENDTO -d "sms:$NUMBER"
-sleep 1
+run_adb shell am start -W -a android.intent.action.SENDTO -d "sms:$NUMBER"
+sleep "$WAIT_AFTER_LAUNCH"
 
 # Tap compose box
-adb shell input tap 340 1419
-sleep 0.3
+run_adb shell input tap "$COMPOSE_X" "$COMPOSE_Y"
+sleep "$WAIT_AFTER_INPUT"
 
 # Type message
-adb shell input text "$ENCODED_MESSAGE"
-sleep 0.5
+run_adb shell input text "$ENCODED_MESSAGE"
+sleep "$WAIT_AFTER_INPUT"
 
 # CLOSE KEYBOARD (critical!)
-adb shell input keyevent 4
-sleep 0.3
+run_adb shell input keyevent KEYCODE_BACK
+sleep "$WAIT_AFTER_INPUT"
 
 # Tap SEND button (stable position)
-adb shell input tap 648 1419
-sleep 1
+run_adb shell input tap "$SEND_X" "$SEND_Y"
+sleep "$WAIT_AFTER_LAUNCH"
 
 # Close conversation
-adb shell input keyevent 4
-sleep 0.3
+run_adb shell input keyevent KEYCODE_BACK
+sleep "$WAIT_AFTER_INPUT"
 
 # Reset Messaging again
-adb shell am force-stop com.android.messaging
-sleep 0.3
+run_adb shell am force-stop com.android.messaging
+sleep "$WAIT_AFTER_INPUT"
 
 echo "SMS sent successfully."
