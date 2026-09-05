@@ -3,6 +3,7 @@ import cgi
 import http.cookies
 import os
 import subprocess
+import telnetlib
 import time
 
 SESSION_DIR = "/tmp/websitepi-websh-sessions"
@@ -41,17 +42,20 @@ if not command.strip():
 if len(command) > 2000 or any(ord(character) < 32 and character not in "\t\n" for character in command):
     print("Command is too long or contains an unsupported control character.")
     raise SystemExit
+if target == "modem" and not command.isascii():
+    print("Modem commands must use standard ASCII characters.")
+    raise SystemExit
 
 try:
     if target == "modem":
-        command = command.rstrip("\r\n") + "\r\n"
-        process = subprocess.run(
-            ["timeout", "10", "telnet", "10.0.0.1", "8888"],
-            input=command,
-            capture_output=True,
-            text=True,
-            timeout=12,
-        )
+        modem = telnetlib.Telnet("10.0.0.1", 8888, 8)
+        modem.write((command.rstrip("\r\n") + "\r\n").encode("ascii"))
+        time.sleep(1)
+        modem_output = modem.read_very_eager().decode("utf-8", errors="replace")
+        modem.close()
+        output = modem_output.replace("\r", "")
+        print(output.rstrip() or "Modem returned no output.")
+        raise SystemExit
     elif target == "pi":
         password = os.environ.get("WEBSSH_PASSWORD", "jee")
         process = subprocess.run(
@@ -67,9 +71,14 @@ try:
             text=True,
             timeout=15,
         )
-except FileNotFoundError as error:
-    print("Required command is unavailable: " + error.filename)
-    raise SystemExit
+except OSError as error:
+    if target == "modem":
+        print("Could not connect to modem Telnet: " + str(error))
+        raise SystemExit
+    if isinstance(error, FileNotFoundError):
+        print("Required command is unavailable: " + error.filename)
+        raise SystemExit
+    raise
 except subprocess.TimeoutExpired:
     print("Command timed out.")
     raise SystemExit
