@@ -34,7 +34,7 @@ def latest_media():
     return records[-1] if records else ("0", "", "0")
 
 
-def camera_package():
+def camera_component():
     result = run(
         "shell", "cmd", "package", "resolve-activity", "--brief",
         "-a", "android.media.action.IMAGE_CAPTURE",
@@ -42,15 +42,16 @@ def camera_package():
     components = [line.strip() for line in result.splitlines() if "/" in line]
     if not components:
         raise RuntimeError("No camera application is installed")
-    return components[-1].split("/", 1)[0]
+    return components[-1]
 
 
 def capture_camera(label, front=False):
     extra = ["--ez", "android.intent.extra.USE_FRONT_CAMERA", "true"] if front else []
     old_id, old_path, old_date = latest_media()
-    package = camera_package()
+    component = camera_component()
+    package = component.split("/", 1)[0]
     run("shell", "am", "force-stop", package)
-    run("shell", "am", "start", "-a", "android.media.action.IMAGE_CAPTURE", *extra)
+    run("shell", "am", "start", "-W", "-n", component, *extra)
     time.sleep(3)
     run("shell", "input", "keyevent", "KEYCODE_CAMERA")
     time.sleep(3)
