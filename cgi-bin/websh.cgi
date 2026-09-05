@@ -1,0 +1,59 @@
+#!/usr/bin/env python3
+import cgi
+import os
+import subprocess
+
+print("Content-Type: text/plain; charset=utf-8")
+print()
+
+form = cgi.FieldStorage()
+target = form.getfirst("target", "")
+command = form.getfirst("command", "")
+
+if target not in {"modem", "pi", "phone"}:
+    print("Invalid shell target.")
+    raise SystemExit
+if not command.strip():
+    print("Enter a command.")
+    raise SystemExit
+if len(command) > 2000 or any(ord(character) < 32 and character not in "\t\n" for character in command):
+    print("Command is too long or contains an unsupported control character.")
+    raise SystemExit
+
+try:
+    if target == "modem":
+        if not command.endswith("\n"):
+            command += "\n"
+        process = subprocess.run(
+            ["timeout", "10", "telnet", "10.0.0.1", "8888"],
+            input=command + "exit\n",
+            capture_output=True,
+            text=True,
+            timeout=12,
+        )
+    elif target == "pi":
+        password = os.environ.get("WEBSSH_PASSWORD", "jee")
+        process = subprocess.run(
+            ["sshpass", "-p", password, "ssh", "-o", "StrictHostKeyChecking=accept-new", "q@10.0.0.11", command],
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+    else:
+        process = subprocess.run(
+            ["adb", "shell", command],
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+except FileNotFoundError as error:
+    print("Required command is unavailable: " + error.filename)
+    raise SystemExit
+except subprocess.TimeoutExpired:
+    print("Command timed out.")
+    raise SystemExit
+
+output = (process.stdout + process.stderr).replace("\r", "")
+print(output.rstrip())
+if process.returncode != 0:
+    print("\n[exit status: %s]" % process.returncode)

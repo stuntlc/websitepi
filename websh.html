@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WebShell | Skunk Works</title>
+<style>
+:root { --ink: #d8f3dc; --muted: #8bb99b; --green: #52d273; --line: #24583a; --panel: rgba(4,18,12,.92); --red: #ee6b72; }
+* { box-sizing: border-box; }
+body { margin: 0; min-height: 100vh; color: var(--ink); background: #07130d url("skunk-bg.jpg") center / cover fixed; font-family: "Courier New", monospace; }
+body::before { content: ""; position: fixed; inset: 0; background: rgba(1,10,6,.78); pointer-events: none; }
+main { position: relative; max-width: 1400px; margin: 0 auto; padding: 28px 20px 44px; }
+header { display: flex; align-items: end; justify-content: space-between; gap: 20px; border-bottom: 1px solid var(--line); padding-bottom: 18px; }
+h1 { margin: 0; color: var(--green); font-size: clamp(22px, 4vw, 36px); letter-spacing: 3px; }
+.subtitle { color: var(--muted); margin: 8px 0 0; font-size: 13px; }
+a, button { border: 1px solid var(--line); background: #0b2517; color: var(--ink); padding: 9px 13px; font: inherit; text-decoration: none; cursor: pointer; }
+a:hover, button:hover { border-color: var(--green); color: white; }
+.statusbar { display: flex; justify-content: space-between; color: var(--muted); padding: 14px 0; font-size: 13px; }
+.shells { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.panel { background: var(--panel); border: 1px solid var(--line); padding: 14px; box-shadow: 0 0 22px rgba(0,0,0,.45); min-width: 0; }
+.panel-title { display: flex; justify-content: space-between; gap: 8px; margin: 0 0 12px; color: var(--green); font-size: 14px; }
+.endpoint { color: var(--muted); font-size: 11px; font-weight: normal; text-align: right; overflow-wrap: anywhere; }
+.output { height: 410px; overflow: auto; margin: 0 0 10px; padding: 10px; border: 1px solid var(--line); background: rgba(1,12,7,.75); color: var(--ink); white-space: pre-wrap; overflow-wrap: anywhere; }
+form { display: flex; gap: 8px; }
+input { flex: 1; min-width: 0; border: 1px solid var(--line); background: rgba(1,12,7,.8); color: white; padding: 9px; font: inherit; }
+input:focus { outline: 1px solid var(--green); border-color: var(--green); }
+button { white-space: nowrap; }
+@media (max-width: 900px) { .shells { grid-template-columns: 1fr; } .output { height: 260px; } }
+@media (max-width: 600px) { main { padding: 18px 12px 30px; } header { align-items: flex-start; flex-direction: column; } }
+</style>
+</head>
+<body>
+<main>
+<header><div><h1>WEBSHELL</h1><p class="subtitle">MODEM // PI // ANDROID ADB</p></div><a href="index.html">[ CONTROL ]</a></header>
+<div class="statusbar"><span>PRIVATE NETWORK TOOL</span><span id="status">READY</span></div>
+<div class="shells">
+<section class="panel"><h2 class="panel-title"><span>MODEM TELNET</span><span class="endpoint">10.0.0.1:8888</span></h2><pre class="output" id="modem-output">Ready.</pre><form data-target="modem"><input name="command" autocomplete="off" placeholder="command" required><button type="submit">RUN</button></form></section>
+<section class="panel"><h2 class="panel-title"><span>PI SSH</span><span class="endpoint">q@10.0.0.11</span></h2><pre class="output" id="pi-output">Ready.</pre><form data-target="pi"><input name="command" autocomplete="off" placeholder="command" required><button type="submit">RUN</button></form></section>
+<section class="panel"><h2 class="panel-title"><span>PHONE ADB</span><span class="endpoint">adb shell</span></h2><pre class="output" id="phone-output">Ready.</pre><form data-target="phone"><input name="command" autocomplete="off" placeholder="command" required><button type="submit">RUN</button></form></section>
+</div>
+</main>
+<script>
+const statusElement = document.getElementById("status");
+document.querySelectorAll("form").forEach(form => form.addEventListener("submit", async event => {
+  event.preventDefault();
+  const target = form.dataset.target;
+  const output = document.getElementById(target + "-output");
+  const button = form.querySelector("button");
+  button.disabled = true;
+  statusElement.textContent = target.toUpperCase() + " RUNNING...";
+  const body = new URLSearchParams(new FormData(form));
+  body.set("target", target);
+  try {
+    const response = await fetch("/cgi-bin/websh.cgi", { method: "POST", body });
+    const text = await response.text();
+    output.textContent += "\n$ " + body.get("command") + "\n" + text + "\n";
+    output.scrollTop = output.scrollHeight;
+    statusElement.textContent = response.ok ? "READY" : "COMMAND ERROR";
+  } catch (error) {
+    output.textContent += "\n[connection error] " + error.message + "\n";
+    statusElement.textContent = "CONNECTION ERROR";
+  } finally { button.disabled = false; form.querySelector("input").focus(); }
+}));
+</script>
+</body>
+</html>
