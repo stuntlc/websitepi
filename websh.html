@@ -21,6 +21,10 @@ a:hover, button:hover { border-color: var(--green); color: white; }
 .panel-title { display: flex; justify-content: space-between; gap: 8px; margin: 0 0 12px; color: var(--green); font-size: 14px; }
 .endpoint { color: var(--muted); font-size: 11px; font-weight: normal; text-align: right; overflow-wrap: anywhere; }
 .output { height: 410px; overflow: auto; margin: 0 0 10px; padding: 10px; border: 1px solid var(--line); background: rgba(1,12,7,.75); color: var(--ink); white-space: pre-wrap; overflow-wrap: anywhere; }
+.login { max-width: 460px; margin: 50px auto 0; }
+.login form { display: flex; gap: 8px; }
+.login input { flex: 1; }
+.error { color: var(--red); min-height: 18px; }
 form { display: flex; gap: 8px; }
 input { flex: 1; min-width: 0; border: 1px solid var(--line); background: rgba(1,12,7,.8); color: white; padding: 9px; font: inherit; }
 input:focus { outline: 1px solid var(--green); border-color: var(--green); }
@@ -33,7 +37,8 @@ button { white-space: nowrap; }
 <main>
 <header><div><h1>WEBSHELL</h1><p class="subtitle">MODEM // PI // ANDROID ADB</p></div><a href="index.html">[ CONTROL ]</a></header>
 <div class="statusbar"><span>PRIVATE NETWORK TOOL</span><span id="status">READY</span></div>
-<div class="shells">
+<section class="panel login" id="login-panel"><h2 class="panel-title"><span>ADMIN ACCESS</span><span>LOCKED</span></h2><form id="login-form"><input id="password" type="password" autocomplete="current-password" placeholder="admin password" required><button type="submit">UNLOCK</button></form><p class="error" id="login-error"></p></section>
+<div class="shells" id="shells" hidden>
 <section class="panel"><h2 class="panel-title"><span>MODEM TELNET</span><span class="endpoint">10.0.0.1:8888</span></h2><pre class="output" id="modem-output">Ready.</pre><form data-target="modem"><input name="command" autocomplete="off" placeholder="command" required><button type="submit">RUN</button></form></section>
 <section class="panel"><h2 class="panel-title"><span>PI SSH</span><span class="endpoint">q@10.0.0.11</span></h2><pre class="output" id="pi-output">Ready.</pre><form data-target="pi"><input name="command" autocomplete="off" placeholder="command" required><button type="submit">RUN</button></form></section>
 <section class="panel"><h2 class="panel-title"><span>PHONE ADB</span><span class="endpoint">adb shell</span></h2><pre class="output" id="phone-output">Ready.</pre><form data-target="phone"><input name="command" autocomplete="off" placeholder="command" required><button type="submit">RUN</button></form></section>
@@ -41,7 +46,20 @@ button { white-space: nowrap; }
 </main>
 <script>
 const statusElement = document.getElementById("status");
+const loginPanel = document.getElementById("login-panel");
+const shells = document.getElementById("shells");
+const loginError = document.getElementById("login-error");
+document.getElementById("login-form").addEventListener("submit", async event => {
+  event.preventDefault();
+  loginError.textContent = "";
+  const response = await fetch("/cgi-bin/websh-auth.cgi", { method: "POST", body: new URLSearchParams({ password: document.getElementById("password").value }) });
+  if (!response.ok) { loginError.textContent = await response.text(); return; }
+  loginPanel.hidden = true;
+  shells.hidden = false;
+  statusElement.textContent = "AUTHENTICATED // READY";
+});
 document.querySelectorAll("form").forEach(form => form.addEventListener("submit", async event => {
+  if (!form.dataset.target) return;
   event.preventDefault();
   const target = form.dataset.target;
   const output = document.getElementById(target + "-output");

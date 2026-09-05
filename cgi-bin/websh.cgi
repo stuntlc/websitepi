@@ -1,7 +1,29 @@
 #!/usr/bin/env python3
 import cgi
+import http.cookies
 import os
 import subprocess
+import time
+
+SESSION_DIR = "/tmp/websitepi-websh-sessions"
+
+cookies = http.cookies.SimpleCookie(os.environ.get("HTTP_COOKIE", ""))
+session = cookies.get("websh_session")
+valid_session = False
+if session and session.value.replace("_", "").replace("-", "").isalnum():
+    session_path = os.path.join(SESSION_DIR, session.value)
+    try:
+        with open(session_path, encoding="ascii") as session_file:
+            valid_session = time.time() - int(session_file.read()) < 1800
+    except (FileNotFoundError, ValueError, OSError):
+        pass
+
+if not valid_session:
+    print("Status: 401 Unauthorized")
+    print("Content-Type: text/plain; charset=utf-8")
+    print()
+    print("WebShell login required.")
+    raise SystemExit
 
 print("Content-Type: text/plain; charset=utf-8")
 print()
