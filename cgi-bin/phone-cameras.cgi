@@ -27,23 +27,35 @@ def latest_media():
     listing = run(
         "shell", "content", "query",
         "--uri", "content://media/external/images/media",
-        "--projection", "_data:date_added",
-        "--sort", "date_added",
+        "--projection", "_id:_data:date_added",
+        "--sort", "_id",
     ).stdout.replace("\r", "")
-    records = re.findall(r"_data=([^,\n]+), date_added=(\d+)", listing)
-    return records[-1] if records else ("", "0")
+    records = re.findall(r"_id=(\d+).*?_data=([^,\n]+).*?date_added=(\d+)", listing)
+    return records[-1] if records else ("0", "", "0")
+
+
+def camera_package():
+    result = run(
+        "shell", "cmd", "package", "resolve-activity", "--brief",
+        "-a", "android.media.action.IMAGE_CAPTURE",
+    ).stdout.replace("\r", "")
+    components = [line.strip() for line in result.splitlines() if "/" in line]
+    if not components:
+        raise RuntimeError("No camera application is installed")
+    return components[-1].split("/", 1)[0]
 
 
 def capture_camera(label, front=False):
     extra = ["--ez", "android.intent.extra.USE_FRONT_CAMERA", "true"] if front else []
-    old_path, old_date = latest_media()
-    run("shell", "am", "force-stop", "com.android.camera")
+    old_id, old_path, old_date = latest_media()
+    package = camera_package()
+    run("shell", "am", "force-stop", package)
     run("shell", "am", "start", "-a", "android.media.action.IMAGE_CAPTURE", *extra)
     time.sleep(3)
     run("shell", "input", "keyevent", "KEYCODE_CAMERA")
     time.sleep(3)
-    source, new_date = latest_media()
-    if not source or int(new_date) <= int(old_date):
+    new_id, source, new_date = latest_media()
+    if not source or int(new_id) <= int(old_id):
         raise RuntimeError("Camera did not create an image")
     source = source.strip()
     if not source.startswith("/storage/"):
