@@ -50,8 +50,15 @@ if [ -z "$NUMBER" ] || [ -z "$MESSAGE" ]; then
 fi
 
 NUMBER=$(printf '%s' "$NUMBER" | sed -E 's/[[:space:]().-]//g; s/^00/+/')
+if [[ "$NUMBER" =~ ^0[1-9][0-9]{8}$ ]]; then
+    NUMBER="+32${NUMBER:1}"
+fi
 if ! [[ "$NUMBER" =~ ^\+[1-9][0-9]{6,14}$ ]]; then
     echo "Invalid international phone number: $NUMBER"
+    exit 1
+fi
+if printf '%s' "$MESSAGE" | LC_ALL=C grep -q '[^ -~]'; then
+    echo "Unsupported character. SMS text must use standard keyboard characters."
     exit 1
 fi
 

@@ -12,6 +12,8 @@ message = form.getfirst("message", "").strip()
 
 if number.startswith("00"):
     number = "+" + number[2:]
+elif re.fullmatch(r"0[1-9]\d{8}", number):
+    number = "+32" + number[1:]
 
 if not re.fullmatch(r"\+[1-9]\d{6,14}", number):
     print("Status: 400 Bad Request\n")
@@ -20,6 +22,10 @@ if not re.fullmatch(r"\+[1-9]\d{6,14}", number):
 if not message or len(message) > 1000:
     print("Status: 400 Bad Request\n")
     print("Enter a message up to 1000 characters.")
+    raise SystemExit
+if not message.isascii() or any(ord(character) < 32 for character in message):
+    print("Status: 400 Bad Request\n")
+    print("Unsupported character. SMS text must use standard keyboard characters.")
     raise SystemExit
 
 script = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "sms", "smsend")
