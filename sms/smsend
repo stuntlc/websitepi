@@ -22,6 +22,25 @@ cleanup_messaging() {
     "$ADB" shell am force-stop com.android.messaging >/dev/null 2>&1 || true
 }
 
+tap_send_button() {
+    local ui_xml node bounds left top right bottom
+
+    if "$ADB" shell uiautomator dump /sdcard/sms-window.xml >/dev/null 2>&1; then
+        ui_xml=$("$ADB" shell cat /sdcard/sms-window.xml 2>/dev/null | tr -d '\r')
+        while IFS= read -r node; do
+            if [[ "$node" == *'text="Send"'* || "$node" == *'content-desc="Send"'* ]]; then
+                bounds=$(printf '%s' "$node" | sed -n 's/.*bounds="\[\([0-9]*\),\([0-9]*\)\]\[\([0-9]*\),\([0-9]*\)\]".*/\1 \2 \3 \4/p')
+                if read -r left top right bottom <<< "$bounds"; then
+                    run_adb shell input tap "$(((left + right) / 2))" "$(((top + bottom) / 2))"
+                    return
+                fi
+            fi
+        done < <(printf '%s' "$ui_xml" | sed 's/></>\n</g')
+    fi
+
+    run_adb shell input tap "$SEND_X" "$SEND_Y"
+}
+
 if [ -z "$NUMBER" ] || [ -z "$MESSAGE" ]; then
     echo "Usage: $0 <number> <message>"
     exit 1
@@ -67,8 +86,8 @@ sleep "$WAIT_AFTER_INPUT"
 run_adb shell input keyevent KEYCODE_BACK
 sleep "$WAIT_AFTER_INPUT"
 
-# Tap SEND button (stable position)
-run_adb shell input tap "$SEND_X" "$SEND_Y"
+# Tap SEND button
+tap_send_button
 sleep "$WAIT_AFTER_LAUNCH"
 
 # Close conversation
