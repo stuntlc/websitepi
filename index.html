@@ -95,6 +95,44 @@ button:hover {
   transition: transform 0.3s ease;
 }
 
+#phoneCapture {
+  display: none;
+  width: 95%;
+  margin-top: 15px;
+}
+
+.phonePhotos {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.phonePhotoFrame {
+  width: min(46%, 480px);
+  min-width: 280px;
+}
+
+.phonePhoto {
+  width: 100%;
+  max-height: 65vh;
+  object-fit: contain;
+  border-radius: 8px;
+  box-shadow: 0 0 20px rgba(0,0,0,0.8);
+  transition: transform 0.3s ease;
+}
+
+.phonePhotoLabel {
+  margin: 8px 0;
+  font-family: "Courier New", monospace;
+}
+
+.phonePhotoControls {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+
 /* --- ROTATE CONTROLS --- */
 #rotateControls {
   position: absolute;
@@ -122,7 +160,7 @@ button:hover {
     <button onclick="runAction('fmphoneoff')">❌FM OFF</button>
     <button onclick="runAction('read_light.py')">💡Lumen</button>
     <button onclick="location.href='websh.html'">⌘WebShell</button>
-    <button onclick="location.href='phonecam.html'">📱Camera</button>
+    <button onclick="capturePhoneCameras()">📱Camera</button>
   </div>
 
   <h1>SKUNK WORKS CONTROL</h1>
@@ -148,23 +186,47 @@ button:hover {
       <button onclick="rotateRight()">⟳Right</button>
     </div>
   </div>
+
+  <section id="phoneCapture">
+    <div class="phonePhotos">
+      <div class="phonePhotoFrame">
+        <img id="phoneRear" class="phonePhoto" alt="Rear phone camera photo">
+        <div class="phonePhotoLabel">REAR CAMERA</div>
+        <div class="phonePhotoControls">
+          <button onclick="rotatePhonePhoto('rear', -90)">⟲Left</button>
+          <button onclick="rotatePhonePhoto('rear', 90)">⟳Right</button>
+        </div>
+      </div>
+      <div class="phonePhotoFrame">
+        <img id="phoneFront" class="phonePhoto" alt="Front phone camera photo">
+        <div class="phonePhotoLabel">FRONT CAMERA</div>
+        <div class="phonePhotoControls">
+          <button onclick="rotatePhonePhoto('front', -90)">⟲Left</button>
+          <button onclick="rotatePhonePhoto('front', 90)">⟳Right</button>
+        </div>
+      </div>
+    </div>
+  </section>
 </div>
 
 <script>
 let liveMode = false;
 let rotation = 180;
+let phoneRotations = { rear: 0, front: 0 };
 
 /* -------------------------
    START LIVE STREAM
 ------------------------- */
 function startLive() {
-  fetch("/cgi-bin/live.cgi")
+  fetch("/cgi-bin/stop_live.sh")
+    .then(() => fetch("/cgi-bin/live.cgi"))
     .then(r => r.text())
     .then(t => {
       document.getElementById("output").innerText = t;
       const live = document.getElementById("live");
       const preview = document.getElementById("preview");
       const rotateControls = document.getElementById("rotateControls");
+      document.getElementById("phoneCapture").style.display = "none";
 
       preview.style.display = "none";
       live.style.display = "block";
@@ -184,6 +246,7 @@ function runAction(script) {
       document.getElementById("live").src = "";
       document.getElementById("preview").style.display = "block";
       document.getElementById("rotateControls").style.display = "none";
+      document.getElementById("phoneCapture").style.display = "none";
 
       fetch("/cgi-bin/" + script)
         .then(r => r.text())
@@ -212,12 +275,44 @@ function runAction(script) {
         live.style.display = "none";
         live.src = "";
         rotateControls.style.display = "none";
+        document.getElementById("phoneCapture").style.display = "none";
         output.innerHTML = t;
         return;
       }
 
       output.innerText = t;
     });
+}
+
+function rotatePhonePhoto(camera, degrees) {
+  phoneRotations[camera] += degrees;
+  document.getElementById(camera === "rear" ? "phoneRear" : "phoneFront").style.transform = `rotate(${phoneRotations[camera]}deg)`;
+}
+
+function capturePhoneCameras() {
+  const output = document.getElementById("output");
+  const phoneCapture = document.getElementById("phoneCapture");
+  output.innerText = "Freeing Pi camera and capturing phone cameras...";
+  document.getElementById("preview").style.display = "none";
+  document.getElementById("live").style.display = "none";
+  document.getElementById("rotateControls").style.display = "none";
+  phoneCapture.style.display = "block";
+  fetch("/cgi-bin/stop_live.sh")
+    .then(() => fetch("/cgi-bin/phone-cameras.cgi?t=" + Date.now(), { cache: "no-store" }))
+    .then(response => response.text().then(text => ({ response, text })))
+    .then(({ response, text }) => {
+      if (!response.ok) throw new Error(text);
+      const rear = text.match(/^rear=(.*)$/m);
+      const front = text.match(/^front=(.*)$/m);
+      if (!rear || !front) throw new Error(text || "No phone photos returned");
+      document.getElementById("phoneRear").src = rear[1] + "?t=" + Date.now();
+      document.getElementById("phoneFront").src = front[1] + "?t=" + Date.now();
+      phoneRotations = { rear: 0, front: 0 };
+      document.getElementById("phoneRear").style.transform = "rotate(0deg)";
+      document.getElementById("phoneFront").style.transform = "rotate(0deg)";
+      output.innerText = "Phone rear and front photos captured.";
+    })
+    .catch(error => { output.innerText = "Phone camera error: " + error.message; });
 }
 
 /* -------------------------
