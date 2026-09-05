@@ -21,6 +21,8 @@ a:hover, button:hover { border-color: var(--green); color: white; }
 .panel-title { display: flex; justify-content: space-between; margin: 0 0 14px; color: var(--green); font-size: 14px; }
 .photos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 .photo { width: 100%; aspect-ratio: 4 / 3; object-fit: contain; background: #010c07; border: 1px solid var(--line); }
+.rotate-controls { display: flex; justify-content: center; gap: 8px; margin-top: 8px; }
+.rotate-controls button { padding: 6px 10px; }
 figcaption { color: var(--muted); font-size: 12px; margin-top: 8px; }
 .actions { margin-top: 16px; text-align: center; }
 @media (max-width: 700px) { main { padding: 18px 12px 30px; } header { align-items: flex-start; flex-direction: column; } .photos { grid-template-columns: 1fr; } }
@@ -30,10 +32,16 @@ figcaption { color: var(--muted); font-size: 12px; margin-top: 8px; }
 <main>
 <header><div><h1>PHONE CAMERAS</h1><p class="subtitle">REDMI 9A // REAR + FRONT CAPTURE</p></div><a href="index.html">[ CONTROL ]</a></header>
 <div class="statusbar"><span id="status">READY</span><button id="capture" type="button">CAPTURE BOTH</button></div>
-<section class="panel"><div class="photos"><figure><img id="rear" class="photo" alt="Rear phone camera photo"><figcaption>REAR CAMERA</figcaption></figure><figure><img id="front" class="photo" alt="Front phone camera photo"><figcaption>FRONT CAMERA</figcaption></figure></div><div class="actions"><button id="capture-bottom" type="button">CAPTURE BOTH</button></div></section>
+<section class="panel"><div class="photos"><figure><img id="rear" class="photo" alt="Rear phone camera photo"><div class="rotate-controls"><button type="button" data-camera="rear" data-turn="-90">⟲ LEFT</button><button type="button" data-camera="rear" data-turn="90">⟳ RIGHT</button></div><figcaption>REAR CAMERA</figcaption></figure><figure><img id="front" class="photo" alt="Front phone camera photo"><div class="rotate-controls"><button type="button" data-camera="front" data-turn="-90">⟲ LEFT</button><button type="button" data-camera="front" data-turn="90">⟳ RIGHT</button></div><figcaption>FRONT CAMERA</figcaption></figure></div><div class="actions"><button id="capture-bottom" type="button">CAPTURE BOTH</button></div></section>
 </main>
 <script>
 const statusElement = document.getElementById("status");
+const rotations = { rear: 0, front: 0 };
+function rotate(camera, degrees) {
+  rotations[camera] += degrees;
+  document.getElementById(camera).style.transform = `rotate(${rotations[camera]}deg)`;
+}
+document.querySelectorAll("[data-camera]").forEach(button => button.addEventListener("click", () => rotate(button.dataset.camera, Number(button.dataset.turn))));
 async function capture() {
   document.querySelectorAll("button").forEach(button => button.disabled = true);
   statusElement.textContent = "CAPTURING REAR + FRONT...";
@@ -46,6 +54,10 @@ async function capture() {
     if (!rear || !front) throw new Error(text || "No photos returned");
     document.getElementById("rear").src = rear[1] + "?t=" + Date.now();
     document.getElementById("front").src = front[1] + "?t=" + Date.now();
+    rotations.rear = 0;
+    rotations.front = 0;
+    document.getElementById("rear").style.transform = "rotate(0deg)";
+    document.getElementById("front").style.transform = "rotate(0deg)";
     statusElement.textContent = "REAR + FRONT READY";
   } catch (error) { statusElement.textContent = error.message; }
   finally { document.querySelectorAll("button").forEach(button => button.disabled = false); }
