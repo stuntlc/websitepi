@@ -1,27 +1,33 @@
 #!/bin/bash
-MSG="$1"
+MSG="${1-}"
+
+if printf '%s' "$MSG" | LC_ALL=C grep -q '[^ -~]'; then
+    echo "Ignoring SMS with unsupported characters"
+    exit 0
+fi
+
 MSG=$(printf '%s\n' "$MSG" |
-    tr '[:upper:]' '[:lower:]' |
+    LC_ALL=C tr '[:upper:]' '[:lower:]' |
     sed -E 's/[[:space:]]+/ /g; s/^ //; s/ $//')
 
 case "$MSG" in
-    *led\ on*)
+    "led on")
         echo "Turning LED ON"
         /home/q/websd/piscripts/relayon
         ;;
-    *led\ off*)
+    "led off")
         echo "Turning LED OFF"
         /home/q/websd/piscripts/relayoff
         ;;
-    *fm\ on*)
+    "fm on")
         echo "Starting FM radio"
         /home/q/websd/piscripts/fmradiophone
         ;;
-    *fm\ off*)
+    "fm off")
         echo "Stopping FM radio"
         /home/q/websd/piscripts/fmphoneoff
         ;;
-    *reboot*)
+    "reboot")
         echo "Rebooting Pi"
         sudo reboot
         ;;
