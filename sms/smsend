@@ -18,6 +18,10 @@ run_adb() {
     fi
 }
 
+cleanup_messaging() {
+    "$ADB" shell am force-stop com.android.messaging >/dev/null 2>&1 || true
+}
+
 if [ -z "$NUMBER" ] || [ -z "$MESSAGE" ]; then
     echo "Usage: $0 <number> <message>"
     exit 1
@@ -28,6 +32,8 @@ if ! [[ "$NUMBER" =~ ^\+[1-9][0-9]{6,14}$ ]]; then
     echo "Invalid international phone number: $NUMBER"
     exit 1
 fi
+
+trap cleanup_messaging EXIT
 
 echo "Sending SMS to $NUMBER: $MESSAGE"
 
@@ -50,6 +56,9 @@ sleep "$WAIT_AFTER_LAUNCH"
 run_adb shell input tap "$COMPOSE_X" "$COMPOSE_Y"
 sleep "$WAIT_AFTER_INPUT"
 
+run_adb shell input keyevent KEYCODE_MOVE_END
+run_adb shell input keyevent --longpress KEYCODE_DEL
+
 # Type message
 run_adb shell "input text '$REMOTE_MESSAGE'"
 sleep "$WAIT_AFTER_INPUT"
@@ -64,10 +73,6 @@ sleep "$WAIT_AFTER_LAUNCH"
 
 # Close conversation
 run_adb shell input keyevent KEYCODE_BACK
-sleep "$WAIT_AFTER_INPUT"
-
-# Reset Messaging again
-run_adb shell am force-stop com.android.messaging
 sleep "$WAIT_AFTER_INPUT"
 
 echo "SMS sent successfully."
