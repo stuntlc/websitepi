@@ -44,11 +44,10 @@ if len(command) > 2000 or any(ord(character) < 32 and character not in "\t\n" fo
 
 try:
     if target == "modem":
-        if not command.endswith("\n"):
-            command += "\n"
+        command = command.rstrip("\r\n") + "\r\n"
         process = subprocess.run(
             ["timeout", "10", "telnet", "10.0.0.1", "8888"],
-            input=command + "exit\n",
+            input=command,
             capture_output=True,
             text=True,
             timeout=12,
@@ -76,6 +75,11 @@ except subprocess.TimeoutExpired:
     raise SystemExit
 
 output = (process.stdout + process.stderr).replace("\r", "")
-print(output.rstrip())
+if output.strip():
+    print(output.rstrip())
+elif target == "modem":
+    print("Modem closed the Telnet session without returning output.")
+else:
+    print("Command returned no output.")
 if process.returncode != 0:
     print("\n[exit status: %s]" % process.returncode)
