@@ -79,7 +79,11 @@ run_adb shell input tap "$COMPOSE_X" "$COMPOSE_Y"
 sleep "$WAIT_AFTER_INPUT"
 
 run_adb shell input keyevent KEYCODE_MOVE_END
-run_adb shell input keyevent --longpress KEYCODE_DEL
+delete_keys=()
+for ((delete_index = 0; delete_index < 1000; delete_index++)); do
+    delete_keys+=(KEYCODE_DEL)
+done
+run_adb shell input keyevent "${delete_keys[@]}"
 
 # Type message
 run_adb shell "input text '$REMOTE_MESSAGE'"
