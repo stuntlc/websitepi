@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Phone Cameras | Skunk Works</title>
+<style>
+:root { --ink: #d8f3dc; --muted: #8bb99b; --green: #52d273; --line: #24583a; --panel: rgba(4,18,12,.92); }
+* { box-sizing: border-box; }
+body { margin: 0; min-height: 100vh; color: var(--ink); background: #07130d url("skunk-bg.jpg") center / cover fixed; font-family: "Courier New", monospace; }
+body::before { content: ""; position: fixed; inset: 0; background: rgba(1,10,6,.78); pointer-events: none; }
+main { position: relative; max-width: 1180px; margin: 0 auto; padding: 28px 20px 44px; }
+header { display: flex; align-items: end; justify-content: space-between; gap: 20px; border-bottom: 1px solid var(--line); padding-bottom: 18px; }
+h1 { margin: 0; color: var(--green); font-size: clamp(22px, 4vw, 36px); letter-spacing: 3px; }
+.subtitle, #status { color: var(--muted); font-size: 13px; }
+.subtitle { margin: 8px 0 0; }
+a, button { border: 1px solid var(--line); background: #0b2517; color: var(--ink); padding: 9px 13px; font: inherit; text-decoration: none; cursor: pointer; }
+a:hover, button:hover { border-color: var(--green); color: white; }
+.statusbar { display: flex; justify-content: space-between; padding: 14px 0; }
+.panel { background: var(--panel); border: 1px solid var(--line); padding: 16px; box-shadow: 0 0 22px rgba(0,0,0,.45); }
+.panel-title { display: flex; justify-content: space-between; margin: 0 0 14px; color: var(--green); font-size: 14px; }
+.photos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.photo { width: 100%; aspect-ratio: 4 / 3; object-fit: contain; background: #010c07; border: 1px solid var(--line); }
+figcaption { color: var(--muted); font-size: 12px; margin-top: 8px; }
+.actions { margin-top: 16px; text-align: center; }
+@media (max-width: 700px) { main { padding: 18px 12px 30px; } header { align-items: flex-start; flex-direction: column; } .photos { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<main>
+<header><div><h1>PHONE CAMERAS</h1><p class="subtitle">REDMI 9A // REAR + FRONT CAPTURE</p></div><a href="index.html">[ CONTROL ]</a></header>
+<div class="statusbar"><span id="status">READY</span><button id="capture" type="button">CAPTURE BOTH</button></div>
+<section class="panel"><div class="photos"><figure><img id="rear" class="photo" alt="Rear phone camera photo"><figcaption>REAR CAMERA</figcaption></figure><figure><img id="front" class="photo" alt="Front phone camera photo"><figcaption>FRONT CAMERA</figcaption></figure></div><div class="actions"><button id="capture-bottom" type="button">CAPTURE BOTH</button></div></section>
+</main>
+<script>
+const statusElement = document.getElementById("status");
+async function capture() {
+  document.querySelectorAll("button").forEach(button => button.disabled = true);
+  statusElement.textContent = "CAPTURING REAR + FRONT...";
+  try {
+    const response = await fetch("/cgi-bin/phone-cameras.cgi?t=" + Date.now(), { cache: "no-store" });
+    const text = await response.text();
+    if (!response.ok) throw new Error(text);
+    const rear = text.match(/^rear=(.*)$/m);
+    const front = text.match(/^front=(.*)$/m);
+    if (!rear || !front) throw new Error(text || "No photos returned");
+    document.getElementById("rear").src = rear[1] + "?t=" + Date.now();
+    document.getElementById("front").src = front[1] + "?t=" + Date.now();
+    statusElement.textContent = "REAR + FRONT READY";
+  } catch (error) { statusElement.textContent = error.message; }
+  finally { document.querySelectorAll("button").forEach(button => button.disabled = false); }
+}
+document.getElementById("capture").addEventListener("click", capture);
+document.getElementById("capture-bottom").addEventListener("click", capture);
+</script>
+</body>
+</html>
