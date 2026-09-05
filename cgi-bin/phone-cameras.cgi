@@ -23,23 +23,29 @@ def run(*arguments, timeout=15, input_text=None):
     )
 
 
-def capture_camera(label, front=False):
-    extra = ["--ez", "android.intent.extra.USE_FRONT_CAMERA", "true"] if front else []
-    run("shell", "am", "force-stop", "com.android.camera")
-    run("shell", "am", "start", "-a", "android.media.action.IMAGE_CAPTURE", *extra)
-    time.sleep(3)
-    run("shell", "input", "keyevent", "KEYCODE_CAMERA")
-    time.sleep(3)
+def latest_media():
     listing = run(
         "shell", "content", "query",
         "--uri", "content://media/external/images/media",
         "--projection", "_data:date_added",
         "--sort", "date_added",
     ).stdout.replace("\r", "")
-    paths = re.findall(r"_data=([^,\n]+)", listing)
-    if not paths:
+    records = re.findall(r"_data=([^,\n]+), date_added=(\d+)", listing)
+    return records[-1] if records else ("", "0")
+
+
+def capture_camera(label, front=False):
+    extra = ["--ez", "android.intent.extra.USE_FRONT_CAMERA", "true"] if front else []
+    old_path, old_date = latest_media()
+    run("shell", "am", "force-stop", "com.android.camera")
+    run("shell", "am", "start", "-a", "android.media.action.IMAGE_CAPTURE", *extra)
+    time.sleep(3)
+    run("shell", "input", "keyevent", "KEYCODE_CAMERA")
+    time.sleep(3)
+    source, new_date = latest_media()
+    if not source or int(new_date) <= int(old_date):
         raise RuntimeError("Camera did not create an image")
-    source = paths[-1].strip()
+    source = source.strip()
     if not source.startswith("/storage/"):
         raise RuntimeError("Camera image path is unavailable")
     destination = os.path.join(root, "phone-" + label + ".jpg")
