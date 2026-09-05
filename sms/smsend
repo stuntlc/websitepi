@@ -1,8 +1,7 @@
 #!/bin/bash
 
 NUMBER="$1"
-shift
-MESSAGE="$*"
+MESSAGE="$2"
 
 ADB="${ADB:-adb}"
 COMPOSE_X="${SMS_COMPOSE_X:-340}"
@@ -24,11 +23,20 @@ if [ -z "$NUMBER" ] || [ -z "$MESSAGE" ]; then
     exit 1
 fi
 
+NUMBER=$(printf '%s' "$NUMBER" | sed -E 's/[[:space:]().-]//g; s/^00/+/')
+if ! [[ "$NUMBER" =~ ^\+[1-9][0-9]{6,14}$ ]]; then
+    echo "Invalid international phone number: $NUMBER"
+    exit 1
+fi
+
 echo "Sending SMS to $NUMBER: $MESSAGE"
 
 run_adb wait-for-device
 
-ENCODED_MESSAGE=$(echo "$MESSAGE" | sed 's/ /%s/g')
+ENCODED_MESSAGE=${MESSAGE//%/%25}
+ENCODED_MESSAGE=${ENCODED_MESSAGE// /%s}
+
+REMOTE_MESSAGE=$(printf '%s' "$ENCODED_MESSAGE" | sed "s/'/'\\\\''/g")
 
 # Reset Messaging
 run_adb shell am force-stop com.android.messaging
@@ -43,7 +51,7 @@ run_adb shell input tap "$COMPOSE_X" "$COMPOSE_Y"
 sleep "$WAIT_AFTER_INPUT"
 
 # Type message
-run_adb shell input text "$ENCODED_MESSAGE"
+run_adb shell "input text '$REMOTE_MESSAGE'"
 sleep "$WAIT_AFTER_INPUT"
 
 # CLOSE KEYBOARD (critical!)

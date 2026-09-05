@@ -7,12 +7,15 @@ import subprocess
 print("Content-Type: text/plain")
 
 form = cgi.FieldStorage()
-number = form.getfirst("number", "").strip()
+number = re.sub(r"[\s().-]", "", form.getfirst("number", "").strip())
 message = form.getfirst("message", "").strip()
 
-if not re.fullmatch(r"[+0-9(). -]{3,32}", number):
+if number.startswith("00"):
+    number = "+" + number[2:]
+
+if not re.fullmatch(r"\+[1-9]\d{6,14}", number):
     print("Status: 400 Bad Request\n")
-    print("Enter a valid phone number.")
+    print("Enter a valid international phone number (for example, +33637035216 or 0033637035216).")
     raise SystemExit
 if not message or len(message) > 1000:
     print("Status: 400 Bad Request\n")
