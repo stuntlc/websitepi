@@ -1,1 +1,0 @@
-adb shell content query --uri content://sms --projection _id:address:body --sort "_id" | tail -n 1

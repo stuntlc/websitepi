@@ -28,7 +28,7 @@ if not message.isascii() or any(ord(character) < 32 for character in message):
     print("Unsupported character. SMS text must use standard keyboard characters.")
     raise SystemExit
 
-script = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "sms", "smsend")
+script = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "piscripts", "smsend")
 try:
     result = subprocess.run(["/bin/bash", script, number, message], capture_output=True, text=True, timeout=45)
 except subprocess.TimeoutExpired:

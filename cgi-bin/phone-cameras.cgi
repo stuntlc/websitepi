@@ -61,10 +61,10 @@ def capture_camera(label, front=False):
     source = source.strip()
     if not source.startswith("/storage/"):
         raise RuntimeError("Camera image path is unavailable")
-    destination = os.path.join(root, "phone-" + label + ".jpg")
+    destination = os.path.join(root, "piscripts", "phone-" + label + ".jpg")
     subprocess.run([adb, "-s", phone, "pull", source, destination], capture_output=True, text=True, timeout=20, check=True)
     run("shell", "input", "keyevent", "KEYCODE_BACK")
-    return "/phone-" + label + ".jpg"
+    return "/piscripts/phone-" + label + ".jpg"
 
 
 try:

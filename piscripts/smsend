@@ -71,7 +71,7 @@ run_adb wait-for-device
 ENCODED_MESSAGE=${MESSAGE//%/%25}
 ENCODED_MESSAGE=${ENCODED_MESSAGE// /%s}
 
-REMOTE_MESSAGE=$(printf '%s' "$ENCODED_MESSAGE" | sed "s/'/'\\\\''/g")
+REMOTE_MESSAGE=$(printf '%s' "$ENCODED_MESSAGE" | sed "s/'/'\\''/g")
 
 # Reset Messaging
 run_adb shell am force-stop com.android.messaging

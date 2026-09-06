@@ -3,7 +3,7 @@
 PHONE="SOEUDQIBF6ZLXK75"
 STATE_FILE="/var/tmp/websitepi-last-sms-id"
 LOCK_FILE="/var/tmp/websitepi-sms-monitor.lock"
-RECEIVER="/home/q/websd/sms/smsreceive"
+RECEIVER="/home/q/websd/piscripts/smsreceive"
 
 exec 9>"$LOCK_FILE"
 flock -n 9 || exit 0

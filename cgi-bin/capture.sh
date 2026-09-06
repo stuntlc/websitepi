@@ -6,12 +6,12 @@ echo ""
 pkill -f mjpeg.py
 
 TS=$(date +%Y%m%d-%H%M%S)
-OUT="/home/q/websd/$TS.jpg"
+OUT="/home/q/websd/piscripts/$TS.jpg"
 
 # Capture rotated image
 rpicam-jpeg --rotation 180 -o "$OUT"
 
 # Save latest filename
-echo "$TS.jpg" > /home/q/websd/latest.txt
+echo "$TS.jpg" > /home/q/websd/piscripts/latest.txt
 
-echo "saved:$TS.jpg"
+echo "saved:/piscripts/$TS.jpg"

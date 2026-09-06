@@ -2,5 +2,5 @@
 echo "Content-Type: text/plain"
 echo ""
 
-VAL=$(python3 /home/q/volt.py)
+VAL=$(python3 /home/q/websd/piscripts/volt.py)
 echo "sensor:$VAL"
