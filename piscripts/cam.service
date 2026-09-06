@@ -1,0 +1,15 @@
+[Unit]
+Description=take a photo
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/rpicam-jpeg --rotation 180 -o /home/q/websd/1.jpeg
+WorkingDirectory=/usr/bin
+User=q
+Group=q
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

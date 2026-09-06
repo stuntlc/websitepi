@@ -1,0 +1,15 @@
+[Unit]
+Description=Start webserver
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 -m http.server --cgi 8080
+WorkingDirectory=/home/q/websd
+User=q
+Group=q
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

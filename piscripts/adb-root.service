@@ -1,0 +1,13 @@
+[Unit]
+Description=ADB Server Auto-Start
+After=systemd-udevd.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/adb root
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target
+

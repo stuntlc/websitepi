@@ -1,0 +1,11 @@
+[Unit]
+Description=Run my script at boot
+After=network.target
+
+[Service]
+Type=oneshot
+ExecStart=/home/q/tetherusb
+User=root
+
+[Install]
+WantedBy=multi-user.target

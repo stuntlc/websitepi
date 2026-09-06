@@ -1,0 +1,14 @@
+[Unit]
+Description=Realtek Serial Init Script
+After=multi-user.target
+
+[Service]
+Type=oneshot
+ExecStart=/home/q/realtek
+User=root
+
+# Wait 3 minutes before running
+ExecStartPre=/bin/sleep 180
+
+[Install]
+WantedBy=multi-user.target

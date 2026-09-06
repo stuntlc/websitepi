@@ -1,0 +1,16 @@
+[Unit]
+Description=SMS Checker for websitepi
+After=network.target
+
+[Service]
+ExecStart=/home/q/websd/piscripts/readsms.sh
+WorkingDirectory=/home/q/websd
+StandardOutput=append:/home/q/websd/logs/sms.log
+StandardError=append:/home/q/websd/logs/sms.log
+Restart=always
+RestartSec=5
+User=q
+Environment=PATH=/usr/bin:/bin:/usr/local/bin
+
+[Install]
+WantedBy=multi-user.target
