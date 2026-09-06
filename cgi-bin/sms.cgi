@@ -6,11 +6,11 @@ ACTION="$QUERY_STRING"
 
 case "$ACTION" in
     led_on)
-        /usr/bin/python3 /home/q/websd/piscripts/led_on.py
+        /home/q/websd/piscripts/relayon
         echo "LED ON"
         ;;
     led_off)
-        /usr/bin/python3 /home/q/websd/piscripts/led_off.py
+        /home/q/websd/piscripts/relayoff
         echo "LED OFF"
         ;;
     reboot)
