@@ -1,4 +1,13 @@
-sudo rm -rf /var/lock/LCK..ttyUSB0
-sudo busybox microcom -s 38400 /dev/ttyUSB0&
-sudo echo -e "\nwebs&\n" > /dev/ttyUSB0&
-sudo ifconfig eth0:1 192.168.100.17&
+#!/bin/sh
+
+echo "Configure serial port"
+stty -F /dev/ttyUSB0 38400 cs8 -parenb -cstopb cread clocal echo icanon icrnl onlcr
+
+echo "Send ENTER"
+printf '\r' > /dev/ttyUSB0
+
+echo "Send webs&"
+printf 'webs&' > /dev/ttyUSB0
+
+echo "Send ENTER again"
+printf '\r' > /dev/ttyUSB0
