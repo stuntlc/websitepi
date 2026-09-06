@@ -58,8 +58,9 @@ try:
         raise SystemExit
     elif target == "pi":
         password = os.environ.get("WEBSSH_PASSWORD", "jee")
+        username = os.environ.get("WEBSSH_USER", "root")
         process = subprocess.run(
-            ["sshpass", "-p", password, "ssh", "-o", "StrictHostKeyChecking=accept-new", "q@10.0.0.11", command],
+            ["sshpass", "-p", password, "ssh", "-o", "StrictHostKeyChecking=accept-new", username + "@10.0.0.11", command],
             capture_output=True,
             text=True,
             timeout=15,
