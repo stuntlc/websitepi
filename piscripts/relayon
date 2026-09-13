@@ -1,2 +1,13 @@
-pinctrl set 12 op
-pinctrl set 12 dh
+#!/bin/bash
+
+if command -v pinctrl >/dev/null 2>&1; then
+	GPIO_COMMAND=(pinctrl)
+elif command -v raspi-gpio >/dev/null 2>&1; then
+	GPIO_COMMAND=(raspi-gpio)
+else
+	echo "GPIO command unavailable: install pinctrl or raspi-gpio" >&2
+	exit 1
+fi
+
+"${GPIO_COMMAND[@]}" set 12 op
+"${GPIO_COMMAND[@]}" set 12 dh

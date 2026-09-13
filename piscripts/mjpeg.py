@@ -1,5 +1,16 @@
 #!/usr/bin/env python3
-import http.server, socketserver, subprocess
+import http.server
+import shutil
+import socketserver
+import subprocess
+
+
+def camera_command():
+    for command in ("rpicam-vid", "libcamera-vid"):
+        path = shutil.which(command)
+        if path:
+            return path
+    raise RuntimeError("Camera command unavailable: install rpicam-apps or libcamera-apps")
 
 class MJPEGHandler(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
@@ -8,7 +19,7 @@ class MJPEGHandler(http.server.BaseHTTPRequestHandler):
         self.end_headers()
 
         cmd = [
-                "rpicam-vid",
+                camera_command(),
                 "-t", "0",
                 "--codec", "mjpeg",
                 "--width", "640",
