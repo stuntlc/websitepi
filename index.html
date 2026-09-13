@@ -214,6 +214,35 @@ let liveMode = false;
 let rotation = 180;
 let phoneRotations = { rear: 0, front: 0 };
 
+async function loadLatestPhoto() {
+  const preview = document.getElementById("preview");
+  const fallback = "/1.jpeg";
+  let source = fallback;
+
+  try {
+    const response = await fetch("/piscripts/latest.txt?t=" + Date.now(), { cache: "no-store" });
+    const filename = (await response.text()).trim();
+    if (response.ok && /^[A-Za-z0-9_.-]+\.(?:jpg|jpeg)$/i.test(filename)) {
+      source = "/piscripts/" + filename;
+    }
+  } catch (error) {
+    // The camera service image remains a valid fallback if the marker is unavailable.
+  }
+
+  preview.onload = () => {
+    preview.style.display = "block";
+  };
+  preview.onerror = () => {
+    if (source !== fallback) {
+      source = fallback;
+      preview.src = source + "?t=" + Date.now();
+    } else {
+      preview.style.display = "none";
+    }
+  };
+  preview.src = source + "?t=" + Date.now();
+}
+
 /* -------------------------
    START LIVE STREAM
 ------------------------- */
@@ -327,6 +356,8 @@ function rotateRight() {
   rotation += 90;
   document.getElementById("live").style.transform = `rotate(${rotation}deg)`;
 }
+
+loadLatestPhoto();
 </script>
 </body>
 </html>
