@@ -53,14 +53,16 @@ echo "🎧 Output node: ${OUTPUT_LABEL}"
 
 
 cleanup() {
+    trap - INT TERM EXIT
     echo -e "\nCleaning up..."
     pkill -f "pw-record --target $BT_INPUT_ID" 2>/dev/null
     pkill -f "pw-play --target $BT_OUTPUT_ID" 2>/dev/null
+    pkill -f "socat - TCP-LISTEN:$PORT" 2>/dev/null
     pkill -f "nc -l -p $PORT" 2>/dev/null
     sleep 1
     exit 0
 }
-trap cleanup INT
+trap cleanup INT TERM EXIT
 
 echo "Choose mode: record / stream / playback / monitor"
 read MODE
@@ -103,6 +105,13 @@ fi
 if [ "$MODE" = "stream" ]; then
     echo "Starting live stream on port $PORT..."
     echo "Open: http://$(hostname -I | awk '{print $1}'):$PORT/live.wav"
+
+    # Release a listener left behind by an earlier stream process.
+    pkill -f "socat - TCP-LISTEN:$PORT" 2>/dev/null || true
+    if command -v fuser >/dev/null 2>&1; then
+        fuser -k "$PORT/tcp" 2>/dev/null || true
+    fi
+    sleep 1
 
     # Boost mic gain safely
     if [[ "$BT_INPUT_ID" =~ ^[0-9]+$ ]]; then
