@@ -3,6 +3,7 @@ import cgi
 import os
 import re
 import subprocess
+import sys
 
 HOST = "10.0.0.50"
 REMOTE_USER = os.environ.get("BTMIC_SSH_USER", os.environ.get("WEBSSH_USER", "q"))
@@ -53,6 +54,7 @@ print("Content-Type: audio/wav")
 print("Content-Disposition: inline; filename=\"" + name + "\"")
 print("Cache-Control: no-cache")
 print()
+sys.stdout.flush()
 if first_chunk:
     os.write(1, first_chunk)
 while True:

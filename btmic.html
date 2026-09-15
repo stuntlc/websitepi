@@ -48,6 +48,7 @@ async function micAction(action) {
 async function startStream() {
   try {
     await micAction("stream-start");
+    await new Promise(resolve => setTimeout(resolve, 3000));
     stream.src = "http://" + PI5_HOST + ":8000/live.wav?t=" + Date.now();
     stream.load();
     await stream.play().catch(() => {});
