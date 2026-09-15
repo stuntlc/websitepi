@@ -42,12 +42,12 @@ action = form.getfirst("action", "")
 commands = {
     "stream-start": (
         "rm -f /tmp/btmic-stream.pid; "
-        "setsid sh -c 'printf \\\"stream\\\\n\\\" | " + REMOTE_SCRIPT + "' "
+        "setsid sh -c 'printf \"%s\\n\" stream | " + REMOTE_SCRIPT + "' "
         ">/tmp/btmic-stream.log 2>&1 </dev/null & echo $! >/tmp/btmic-stream.pid"
     ),
     "record-start": (
         "rm -f /tmp/btmic-record.pid; "
-        "setsid sh -c 'printf \\\"record\\\\n1\\\\n86400\\\\n\\\" | " + REMOTE_SCRIPT + "' "
+        "setsid sh -c 'printf \"%s\\n\" record 1 86400 | " + REMOTE_SCRIPT + "' "
         ">/tmp/btmic-record.log 2>&1 </dev/null & echo $! >/tmp/btmic-record.pid"
     ),
     "stop": (

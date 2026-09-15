@@ -9,6 +9,7 @@ main { margin: 80px auto; max-width: 760px; padding: 24px; }
 h1 { font-family: "Courier New", monospace; letter-spacing: 3px; }
 button { background: #292929; border: 1px solid #666; border-radius: 8px; color: white; cursor: pointer; margin: 5px; padding: 10px 14px; }
 button:hover { background: #444; }
+a { color: #9ddcff; display: inline-block; margin-bottom: 18px; }
 #status { min-height: 24px; margin: 18px; }
 audio { width: min(90%, 600px); }
 ul { list-style: none; margin: 20px 0; padding: 0; }
@@ -17,6 +18,7 @@ li { margin: 8px; }
 </head>
 <body>
 <main>
+  <a href="index.html">[ Return to control panel ]</a>
   <h1>BLUETOOTH MIC</h1>
   <p>Pi5: 10.0.0.50</p>
   <button onclick="startStream()">Start live stream</button>
@@ -41,8 +43,9 @@ async function micAction(action) {
 async function startStream() {
   try {
     await micAction("stream-start");
-    stream.src = "http://10.0.0.50:8000/live.wav?t=" + Date.now();
-    await stream.play();
+    stream.src = "http://" + location.hostname + ":8000/live.wav?t=" + Date.now();
+    stream.load();
+    await stream.play().catch(() => {});
     status.textContent = "Live stream connected.";
   } catch (error) { status.textContent = error.message; }
 }
