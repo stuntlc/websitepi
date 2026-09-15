@@ -113,15 +113,14 @@ if [ "$MODE" = "stream" ]; then
     while true; do
         {
             printf "HTTP/1.1 200 OK\r\n"
-            printf "Content-Type: audio/wav\r\n"
+            printf "Content-Type: audio/mpeg\r\n"
             printf "Cache-Control: no-cache\r\n"
             printf "Connection: close\r\n\r\n"
 
-            # WAV header with "data" chunk size set to 0xFFFFFFFF (infinite stream)
-            printf "RIFF\xFF\xFF\xFF\xFFWAVEfmt \x10\x00\x00\x00\x01\x00\x01\x00\x80\x3E\x00\x00\x00\x7D\x00\x00\x02\x00\x10\x00data\xFF\xFF\xFF\xFF"
-
-            # Stream mic data continuously
-            pw-record --target "$BT_INPUT_ID" --rate 16000 --channels 1 --format s16 - 2>/dev/null
+            # Encode live PCM as MP3 so browser audio elements can start playback.
+            pw-record --target "$BT_INPUT_ID" --rate 16000 --channels 1 --format s16 - 2>/dev/null | \
+                ffmpeg -hide_banner -loglevel error -f s16le -ar 16000 -ac 1 -i - \
+                -f mp3 -flush_packets 1 - 2>/dev/null
         } | socat - TCP-LISTEN:$PORT,reuseaddr
     done
 fi

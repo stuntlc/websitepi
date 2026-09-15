@@ -25,7 +25,7 @@ except (OSError, ConnectionError) as error:
     print("Pi5 live stream unavailable: " + str(error))
     raise SystemExit
 
-print("Content-Type: audio/wav")
+print("Content-Type: audio/mpeg")
 print("Cache-Control: no-cache, no-store")
 print("X-Accel-Buffering: no")
 print()
