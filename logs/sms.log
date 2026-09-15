@@ -105116,3 +105116,4 @@ Received SMS: Info Orange Thank You. Top, déjà 1 mois chez nous! Vous devenez 
 No matching action
 Received SMS: led off, date=1788030091688
 Turning LED OFF
+/home/q/websd/piscripts/readsms.sh: line 24: printf: write error: Broken pipe
