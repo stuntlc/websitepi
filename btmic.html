@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Bluetooth Mic</title>
+<style>
+body { background: #151515; color: #eee; font-family: Arial, sans-serif; margin: 0; text-align: center; }
+main { margin: 80px auto; max-width: 760px; padding: 24px; }
+h1 { font-family: "Courier New", monospace; letter-spacing: 3px; }
+button { background: #292929; border: 1px solid #666; border-radius: 8px; color: white; cursor: pointer; margin: 5px; padding: 10px 14px; }
+button:hover { background: #444; }
+#status { min-height: 24px; margin: 18px; }
+audio { width: min(90%, 600px); }
+ul { list-style: none; margin: 20px 0; padding: 0; }
+li { margin: 8px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>BLUETOOTH MIC</h1>
+  <p>Pi5: 10.0.0.50</p>
+  <button onclick="startStream()">Start live stream</button>
+  <button onclick="startRecording()">Start recording</button>
+  <button onclick="stopMic()">Stop</button>
+  <p id="status"></p>
+  <audio id="stream" controls></audio>
+  <h2>Recordings</h2>
+  <ul id="recordings"></ul>
+</main>
+<script>
+const status = document.getElementById("status");
+const stream = document.getElementById("stream");
+
+async function micAction(action) {
+  const response = await fetch("/cgi-bin/btmic.cgi?action=" + encodeURIComponent(action), { cache: "no-store" });
+  const data = await response.json();
+  if (!response.ok || !data.ok) throw new Error(data.error || "Mic action failed.");
+  return data;
+}
+
+async function startStream() {
+  try {
+    await micAction("stream-start");
+    stream.src = "http://10.0.0.50:8000/live.wav?t=" + Date.now();
+    await stream.play();
+    status.textContent = "Live stream connected.";
+  } catch (error) { status.textContent = error.message; }
+}
+
+async function startRecording() {
+  try {
+    await micAction("record-start");
+    status.textContent = "Recording started. Use Stop to finish it.";
+    setTimeout(loadRecordings, 1500);
+  } catch (error) { status.textContent = error.message; }
+}
+
+async function stopMic() {
+  try {
+    await micAction("stop");
+    stream.pause();
+    stream.removeAttribute("src");
+    stream.load();
+    status.textContent = "Mic stopped.";
+    loadRecordings();
+  } catch (error) { status.textContent = error.message; }
+}
+
+async function loadRecordings() {
+  try {
+    const response = await fetch("/cgi-bin/btmic.cgi?action=list&t=" + Date.now(), { cache: "no-store" });
+    const data = await response.json();
+    if (!response.ok || !data.ok) throw new Error(data.error || "Could not list recordings.");
+    document.getElementById("recordings").innerHTML = data.recordings.map(name =>
+      `<li><audio controls preload="none" src="/cgi-bin/btmic-file.cgi?name=${encodeURIComponent(name)}"></audio><br>${name}</li>`
+    ).join("") || "<li>No recordings found.</li>";
+  } catch (error) { status.textContent = error.message; }
+}
+
+loadRecordings();
+</script>
+</body>
+</html>
