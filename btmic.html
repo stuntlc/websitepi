@@ -32,7 +32,6 @@ li { margin: 8px; }
 <script>
 const status = document.getElementById("status");
 const stream = document.getElementById("stream");
-const PI5_HOST = "10.0.0.50";
 
 stream.addEventListener("error", () => {
   status.textContent = "Audio stream or recording could not be played.";
@@ -49,7 +48,7 @@ async function startStream() {
   try {
     await micAction("stream-start");
     await new Promise(resolve => setTimeout(resolve, 3000));
-    stream.src = "http://" + PI5_HOST + ":8000/live.wav?t=" + Date.now();
+    stream.src = "/cgi-bin/btmic-stream.cgi?t=" + Date.now();
     stream.load();
     await stream.play().catch(() => {});
     status.textContent = "Live stream connected.";
