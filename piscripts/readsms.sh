@@ -21,7 +21,8 @@ while true; do
         --projection _id:body:date \
         --sort date 2>/dev/null | tail -n 1)
     ID=$(printf '%s\n' "$LAST" | sed -n 's/.*_id=\([^, ]*\).*/\1/p' | tr -d '\r')
-    BODY=$(printf '%s\n' "$LAST" | sed -n 's/.*body=//p' | tr -d '\r')
+    BODY=$(printf '%s\n' "$LAST" |
+        sed -n 's/.*body=//; s/, date=.*//; s/\r$//; p')
 
     if [ -n "$ID" ] && [ "$initialized" -eq 0 ]; then
         printf '%s\n' "$ID" > "${STATE_FILE}.tmp"

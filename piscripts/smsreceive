@@ -19,6 +19,14 @@ case "$MSG" in
         echo "Turning LED OFF"
         /home/q/websd/piscripts/relayoff
         ;;
+    "flashlight on")
+        echo "Turning flashlight ON"
+        /home/q/websd/piscripts/flash.sh on
+        ;;
+    "flashlight off")
+        echo "Turning flashlight OFF"
+        /home/q/websd/piscripts/flash.sh off
+        ;;
     "fm on")
         echo "Starting FM radio"
         /home/q/websd/piscripts/fmradiophone
