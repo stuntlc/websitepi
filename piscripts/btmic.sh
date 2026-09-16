@@ -87,7 +87,7 @@ if [ "$MODE" = "record" ]; then
     echo "How many seconds do you want to record?"
     read SECS
     TS=$(date +"%Y-%m-%d_%H-%M-%S")
-    OUT="$REC_DIR/rec_$TS.wav"
+    OUT="$REC_DIR/rec_$TS.mp3"
 
     # Boost mic gain safely
     if [[ "$BT_INPUT_ID" =~ ^[0-9]+$ ]]; then
@@ -95,7 +95,7 @@ if [ "$MODE" = "record" ]; then
     fi
 
     echo "Recording $SECS seconds from $BT_DEVICE_NAME in $DESC..."
-    timeout "$SECS" pw-record --target "$BT_INPUT_ID" --rate "$RATE" --channels 1 --format "$FORMAT" "$OUT"
+    timeout "$SECS" sh -c 'pw-record --target "$1" --rate "$2" --channels 1 --format "$3" --latency 20ms - | ffmpeg -hide_banner -loglevel error -f s16le -ar "$2" -ac 1 -i - -c:a libmp3lame -b:a 64k -write_xing 0 -flush_packets 1 "$4"' sh "$BT_INPUT_ID" "$RATE" "$FORMAT" "$OUT"
     echo "Saved: $OUT"
     sleep 2
     exit 0
@@ -104,7 +104,7 @@ fi
 # --- STREAM MODE ---
 if [ "$MODE" = "stream" ]; then
     echo "Starting live stream on port $PORT..."
-    echo "Open: http://$(hostname -I | awk '{print $1}'):$PORT/live.wav"
+    echo "Open: http://$(hostname -I | awk '{print $1}'):$PORT/live.mp3"
 
     # Release a listener left behind by an earlier stream process.
     pkill -f "socat - TCP-LISTEN:$PORT" 2>/dev/null || true
@@ -127,9 +127,9 @@ if [ "$MODE" = "stream" ]; then
             printf "Connection: close\r\n\r\n"
 
             # Encode live PCM as MP3 so browser audio elements can start playback.
-            pw-record --target "$BT_INPUT_ID" --rate 16000 --channels 1 --format s16 - 2>/dev/null | \
-                ffmpeg -hide_banner -loglevel error -f s16le -ar 16000 -ac 1 -i - \
-                -f mp3 -flush_packets 1 - 2>/dev/null
+            pw-record --target "$BT_INPUT_ID" --rate 16000 --channels 1 --format s16 --latency 20ms - 2>/dev/null | \
+                ffmpeg -hide_banner -loglevel error -fflags nobuffer -f s16le -ar 16000 -ac 1 -i - \
+                -c:a libmp3lame -b:a 64k -write_xing 0 -flush_packets 1 -f mp3 - 2>/dev/null
         } | socat - TCP-LISTEN:$PORT,reuseaddr
     done
 fi
@@ -138,7 +138,7 @@ fi
 # -- PLAYBACK MODE ---
 if [ "$MODE" = "playback" ]; then
     echo "Available recordings:"
-    ls "$REC_DIR"/*.wav 2>/dev/null || echo "No recordings found."
+    ls "$REC_DIR"/*.mp3 "$REC_DIR"/*.wav 2>/dev/null || echo "No recordings found."
     echo "Enter filename to play (without path):"
     read FILE
     FULL_PATH="$REC_DIR/$FILE"
@@ -165,11 +165,11 @@ if [ "$MODE" = "playback" ]; then
 
     if [ "$DEST" = "website" ]; then
         echo "Serving $FILE on port $PORT..."
-        echo "Open: http://$(hostname -I | awk '{print $1}'):$PORT/play.wav"
+        echo "Open: http://$(hostname -I | awk '{print $1}'):$PORT/play.mp3"
 
         {
             printf "HTTP/1.1 200 OK\r\n"
-            printf "Content-Type: audio/wav\r\n"
+            printf "Content-Type: audio/mpeg\r\n"
             printf "Cache-Control: no-cache\r\n"
             printf "Connection: close\r\n\r\n"
             cat "$FULL_PATH"
@@ -194,6 +194,6 @@ if [ "$MODE" = "monitor" ]; then
     pw-metadata -n settings 0 clock.force-quantum 64
 
     # Direct playback with ffplay (requires ffmpeg installed)
-    pw-record --target "$BT_INPUT_ID" --rate 8000 --channels 1 --format s16 - | \
+    pw-record --target "$BT_INPUT_ID" --rate 8000 --channels 1 --format s16 --latency 10ms - | \
         ffplay -nodisp -autoexit -f s16le -ar 8000 -
 fi

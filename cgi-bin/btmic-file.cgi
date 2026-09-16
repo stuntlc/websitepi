@@ -12,7 +12,7 @@ REC_DIR = "/home/q/recorded"
 
 form = cgi.FieldStorage()
 name = form.getfirst("name", "")
-if not re.fullmatch(r"[A-Za-z0-9_.-]+\.wav", name):
+if not re.fullmatch(r"[A-Za-z0-9_.-]+\.(?:mp3|wav)", name):
     print("Status: 400 Bad Request")
     print("Content-Type: text/plain; charset=utf-8")
     print()
@@ -50,7 +50,8 @@ if process.poll() not in (None, 0) and not first_chunk:
     print("Recording not found.")
     raise SystemExit
 
-print("Content-Type: audio/wav")
+content_type = "audio/mpeg" if name.lower().endswith(".mp3") else "audio/wav"
+print("Content-Type: " + content_type)
 print("Content-Disposition: inline; filename=\"" + name + "\"")
 print("Cache-Control: no-cache")
 print()

@@ -56,7 +56,7 @@ commands = {
         "pid=$(cat \"$pidfile\"); kill -- -\"$pid\" 2>/dev/null || kill \"$pid\" 2>/dev/null || true; "
         "rm -f \"$pidfile\"; fi; done"
     ),
-    "list": "find /home/q/recorded -maxdepth 1 -type f -name '*.wav' -printf '%f\\n' 2>/dev/null | sort",
+    "list": r"find /home/q/recorded -maxdepth 1 -type f \( -name '*.mp3' -o -name '*.wav' \) -printf '%f\n' 2>/dev/null | sort",
 }
 
 if action not in commands:

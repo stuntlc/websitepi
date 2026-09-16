@@ -82,8 +82,20 @@ async function startStream() {
     panelStatus.classList.remove("error");
     status.classList.remove("error");
     await micAction("stream-start");
-    await new Promise(resolve => setTimeout(resolve, 3000));
-    stream.src = "/cgi-bin/btmic-stream.cgi?t=" + Date.now();
+    for (let attempt = 0; attempt < 10; attempt += 1) {
+      const controller = new AbortController();
+      try {
+        const response = await fetch("/cgi-bin/btmic-stream.cgi?t=" + Date.now(), { cache: "no-store", signal: controller.signal });
+        if (!response.ok) throw new Error("Stream is not ready.");
+        controller.abort();
+        stream.src = "/cgi-bin/btmic-stream.cgi?t=" + Date.now();
+        break;
+      } catch (error) {
+        controller.abort();
+        if (attempt === 9) throw error;
+        await new Promise(resolve => setTimeout(resolve, 250));
+      }
+    }
     stream.load();
     await stream.play().catch(() => {});
     panelStatus.textContent = "LIVE STREAM CONNECTED.";
