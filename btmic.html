@@ -64,10 +64,19 @@ audio { width: 100%; display: block; }
 const status = document.getElementById("status");
 const panelStatus = document.getElementById("panel-status");
 const stream = document.getElementById("stream");
+let streamTrace = null;
 
 stream.addEventListener("error", () => {
   panelStatus.textContent = "Audio stream or recording could not be played.";
   panelStatus.classList.add("error");
+});
+
+stream.addEventListener("playing", () => {
+  if (!streamTrace) return;
+  streamTrace.playing = performance.now();
+  const browserBuffer = streamTrace.playing - streamTrace.firstByte;
+  panelStatus.textContent = `LIVE // headers ${streamTrace.headers.toFixed(0)} ms // first audio ${streamTrace.firstByte.toFixed(0)} ms // playing +${browserBuffer.toFixed(0)} ms`;
+  console.info("BTMIC stream trace", { ...streamTrace, browserBuffer });
 });
 
 async function micAction(action) {
@@ -84,9 +93,23 @@ async function startStream() {
     await micAction("stream-start");
     for (let attempt = 0; attempt < 10; attempt += 1) {
       const controller = new AbortController();
+      const requestStarted = performance.now();
       try {
         const response = await fetch("/cgi-bin/btmic-stream.cgi?t=" + Date.now(), { cache: "no-store", signal: controller.signal });
         if (!response.ok) throw new Error("Stream is not ready.");
+        const headersReceived = performance.now();
+        const traceHeader = response.headers.get("X-BTMIC-Trace") || "";
+        const reader = response.body.getReader();
+        const firstChunk = await reader.read();
+        const firstByte = performance.now();
+        reader.cancel();
+        streamTrace = {
+          request: requestStarted,
+          headers: headersReceived - requestStarted,
+          firstByte: firstByte - requestStarted,
+          server: traceHeader,
+        };
+        console.info("BTMIC stream startup trace", streamTrace);
         controller.abort();
         stream.src = "/cgi-bin/btmic-stream.cgi?t=" + Date.now();
         break;
