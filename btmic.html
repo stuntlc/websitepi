@@ -2,39 +2,72 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Bluetooth Mic</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bluetooth Mic | Skunk Works</title>
 <style>
-body { background: #151515; color: #eee; font-family: Arial, sans-serif; margin: 0; text-align: center; }
-main { margin: 80px auto; max-width: 760px; padding: 24px; }
-h1 { font-family: "Courier New", monospace; letter-spacing: 3px; }
-button { background: #292929; border: 1px solid #666; border-radius: 8px; color: white; cursor: pointer; margin: 5px; padding: 10px 14px; }
-button:hover { background: #444; }
-a { color: #9ddcff; display: inline-block; margin-bottom: 18px; }
-#status { min-height: 24px; margin: 18px; }
-audio { width: min(90%, 600px); }
-ul { list-style: none; margin: 20px 0; padding: 0; }
-li { margin: 8px; }
+:root { --ink: #d8f3dc; --muted: #8bb99b; --green: #52d273; --line: #24583a; --panel: rgba(4, 18, 12, .9); --amber: #f2c14e; --red: #ee6b72; }
+* { box-sizing: border-box; }
+body { margin: 0; min-height: 100vh; color: var(--ink); background: #07130d url("skunk-bg.jpg") center / cover fixed; font-family: "Courier New", monospace; }
+body::before { content: ""; position: fixed; inset: 0; background: rgba(1, 10, 6, .78); pointer-events: none; }
+main { position: relative; max-width: 1180px; margin: 0 auto; padding: 28px 20px 44px; }
+header { display: flex; align-items: end; justify-content: space-between; gap: 20px; border-bottom: 1px solid var(--line); padding-bottom: 18px; }
+h1 { margin: 0; color: var(--green); font-size: clamp(22px, 4vw, 36px); letter-spacing: 3px; }
+.subtitle { color: var(--muted); margin: 8px 0 0; font-size: 13px; }
+.actions { display: flex; gap: 8px; }
+button, a { border: 1px solid var(--line); background: #0b2517; color: var(--ink); padding: 9px 13px; font: inherit; text-decoration: none; cursor: pointer; }
+button:hover, a:hover { border-color: var(--green); color: white; }
+.statusbar { display: flex; justify-content: space-between; gap: 16px; color: var(--muted); padding: 14px 0; font-size: 13px; }
+.layout { display: grid; grid-template-columns: 360px minmax(0, 1fr); gap: 18px; }
+.panel { background: var(--panel); border: 1px solid var(--line); padding: 16px; box-shadow: 0 0 22px rgba(0,0,0,.45); }
+.panel-title { display: flex; justify-content: space-between; align-items: center; margin: 0 0 14px; color: var(--green); font-size: 14px; letter-spacing: 1px; }
+.section-label { margin: 18px 0 9px; color: var(--green); font-size: 13px; letter-spacing: 1px; }
+.controls { display: flex; flex-wrap: wrap; gap: 10px; margin: 14px 0 0; }
+#status { min-height: 24px; margin: 0; color: var(--muted); }
+#panel-status { min-height: 24px; margin: 14px 0 0; color: var(--muted); }
+#panel-status.error, #status.error { color: var(--red); }
+audio { width: 100%; display: block; }
+#recordings { list-style: none; margin: 0; padding: 0; }
+#recordings li { margin: 14px 0; padding: 10px; border: 1px solid var(--line); background: rgba(1, 12, 7, .55); }
+#recordings li audio { margin-bottom: 8px; }
+@media (max-width: 760px) { main { padding: 18px 12px 30px; } header, .statusbar { align-items: flex-start; flex-direction: column; } .layout { grid-template-columns: 1fr; } .actions { width: 100%; } }
 </style>
 </head>
 <body>
 <main>
-  <a href="index.html">[ Return to control panel ]</a>
-  <h1>BLUETOOTH MIC</h1>
-  <p>Pi5: 10.0.0.50</p>
-  <button onclick="startStream()">Start live stream</button>
-  <button onclick="startRecording()">Start recording</button>
-  <button onclick="stopMic()">Stop</button>
-  <p id="status"></p>
-  <audio id="stream" controls></audio>
-  <h2>Recordings</h2>
-  <ul id="recordings"></ul>
+  <header>
+    <div>
+      <h1>BLUETOOTH MIC</h1>
+      <p class="subtitle">PI AUDIO // CAPTURE, RECORD, STREAM</p>
+    </div>
+    <div class="actions"><a href="index.html">[ CONTROL ]</a></div>
+  </header>
+  <div class="statusbar"><span id="status">READY</span><span>PI5: 10.0.0.50</span></div>
+  <div class="layout">
+    <section class="panel">
+      <h2 class="panel-title"><span>MIC CONTROLS</span><span>LIVE</span></h2>
+      <div class="controls">
+        <button onclick="startStream()">[ START STREAM ]</button>
+        <button onclick="startRecording()">[ START RECORDING ]</button>
+        <button onclick="stopMic()">[ STOP ]</button>
+      </div>
+      <p id="panel-status" aria-live="polite"></p>
+    </section>
+    <section class="panel">
+      <h2 class="panel-title"><span>STREAM OUTPUT</span><span>MONITOR</span></h2>
+      <audio id="stream" controls></audio>
+      <h3 class="section-label">RECORDINGS</h3>
+      <ul id="recordings"></ul>
+    </section>
+  </div>
 </main>
 <script>
 const status = document.getElementById("status");
+const panelStatus = document.getElementById("panel-status");
 const stream = document.getElementById("stream");
 
 stream.addEventListener("error", () => {
-  status.textContent = "Audio stream or recording could not be played.";
+  panelStatus.textContent = "Audio stream or recording could not be played.";
+  panelStatus.classList.add("error");
 });
 
 async function micAction(action) {
@@ -46,32 +79,41 @@ async function micAction(action) {
 
 async function startStream() {
   try {
+    panelStatus.classList.remove("error");
+    status.classList.remove("error");
     await micAction("stream-start");
     await new Promise(resolve => setTimeout(resolve, 3000));
     stream.src = "/cgi-bin/btmic-stream.cgi?t=" + Date.now();
     stream.load();
     await stream.play().catch(() => {});
-    status.textContent = "Live stream connected.";
-  } catch (error) { status.textContent = error.message; }
+    panelStatus.textContent = "LIVE STREAM CONNECTED.";
+    status.textContent = "MODEM ONLINE // MIC STREAM ACTIVE";
+  } catch (error) { panelStatus.textContent = error.message; panelStatus.classList.add("error"); status.textContent = "MIC ERROR"; }
 }
 
 async function startRecording() {
   try {
+    panelStatus.classList.remove("error");
+    status.classList.remove("error");
     await micAction("record-start");
-    status.textContent = "Recording started. Use Stop to finish it.";
+    panelStatus.textContent = "RECORDING STARTED. USE STOP TO FINISH IT.";
+    status.textContent = "MIC RECORDING ACTIVE";
     setTimeout(loadRecordings, 1500);
-  } catch (error) { status.textContent = error.message; }
+  } catch (error) { panelStatus.textContent = error.message; panelStatus.classList.add("error"); status.textContent = "MIC ERROR"; }
 }
 
 async function stopMic() {
   try {
+    panelStatus.classList.remove("error");
+    status.classList.remove("error");
     await micAction("stop");
     stream.pause();
     stream.removeAttribute("src");
     stream.load();
-    status.textContent = "Mic stopped.";
+    panelStatus.textContent = "MIC STOPPED.";
+    status.textContent = "READY";
     loadRecordings();
-  } catch (error) { status.textContent = error.message; }
+  } catch (error) { panelStatus.textContent = error.message; panelStatus.classList.add("error"); status.textContent = "MIC ERROR"; }
 }
 
 async function loadRecordings() {
@@ -81,8 +123,8 @@ async function loadRecordings() {
     if (!response.ok || !data.ok) throw new Error(data.error || "Could not list recordings.");
     document.getElementById("recordings").innerHTML = data.recordings.map(name =>
       `<li><audio controls preload="none" src="/cgi-bin/btmic-file.cgi?name=${encodeURIComponent(name)}"></audio><br>${name}</li>`
-    ).join("") || "<li>No recordings found.</li>";
-  } catch (error) { status.textContent = error.message; }
+    ).join("") || "<li>NO RECORDINGS FOUND.</li>";
+  } catch (error) { panelStatus.textContent = error.message; panelStatus.classList.add("error"); status.textContent = "MIC ERROR"; }
 }
 
 loadRecordings();
