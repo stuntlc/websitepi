@@ -154,6 +154,49 @@ button:active, a:active {
   font-weight: 500;
 }
 
+#outputPanel {
+  display: none;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.85);
+  z-index: 100;
+  padding: 20px;
+  overflow-y: auto;
+  border: 2px solid rgba(0, 255, 0, 0.5);
+}
+
+#outputPanel.active {
+  display: flex;
+  flex-direction: column;
+}
+
+#outputPanel pre {
+  font-family: "Courier New", monospace;
+  font-size: 12px;
+  color: #00ff00;
+  text-shadow: 0 0 5px rgba(0, 255, 0, 0.6);
+  margin: 0;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  flex: 1;
+}
+
+#outputPanel .close-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: rgba(0, 255, 0, 0.2);
+  border: 1px solid rgba(0, 255, 0, 0.6);
+  color: #00ff00;
+  padding: 6px 12px;
+  cursor: pointer;
+  border-radius: 4px;
+  font-weight: bold;
+}
+
 #preview, #live {
   margin: 0;
   max-width: min(75vw, 900px);
@@ -279,6 +322,10 @@ button:active, a:active {
     max-width: 95vw;
   }
 
+  #outputPanel pre {
+    font-size: 11px;
+  }
+
   #preview, #live {
     max-width: min(90vw, 500px);
     max-height: 40vh;
@@ -344,6 +391,14 @@ button:active, a:active {
     max-width: 95vw;
   }
 
+  #outputPanel {
+    padding: 15px;
+  }
+
+  #outputPanel pre {
+    font-size: 10px;
+  }
+
   #preview, #live {
     max-width: 95vw;
     max-height: 35vh;
@@ -391,7 +446,12 @@ button:active, a:active {
 </div>
 
 <div class="main">
-  <div class="media-container">
+  <div id="outputPanel">
+    <button class="close-btn" onclick="closeOutputPanel()">✕ Close</button>
+    <pre id="outputContent"></pre>
+  </div>
+
+  <div class="media-container" id="media-container">
     <div class="title-side">
       <h1>SKUNK WORKS NOC</h1>
       <div id="output">READY</div>
@@ -523,17 +583,20 @@ function runAction(script) {
       const rotateControls = document.getElementById("rotateControls");
 
       if (script === "netcheck.sh" || script === "meteo.cgi") {
-        preview.style.display = "none";
-        live.style.display = "none";
-        live.src = "";
-        rotateControls.style.display = "none";
-        document.getElementById("phoneCapture").style.display = "none";
-        output.innerHTML = t;
+        // Hide media and show full output panel for text-based results
+        document.getElementById("media-container").style.display = "none";
+        document.getElementById("outputPanel").classList.add("active");
+        document.getElementById("outputContent").innerText = t;
         return;
       }
 
       output.innerText = t;
     });
+}
+
+function closeOutputPanel() {
+  document.getElementById("outputPanel").classList.remove("active");
+  document.getElementById("media-container").style.display = "flex";
 }
 
 function rotatePhonePhoto(camera, degrees) {
