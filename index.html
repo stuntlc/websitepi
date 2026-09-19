@@ -241,7 +241,7 @@ button:active, a:active {
 
 #phoneCapture {
   display: none;
-  margin-top: 8px;
+  margin-top: 4px;
   width: 100%;
 }
 
@@ -262,7 +262,7 @@ button:active, a:active {
 
 .phonePhoto {
   width: 100%;
-  max-height: 50vh;
+  max-height: 38vh;
   object-fit: contain;
   border-radius: 6px;
   box-shadow: 0 0 15px rgba(0, 0, 0, 0.9);
@@ -644,10 +644,16 @@ function runAction(script) {
         // Hide media and show full output panel for text-based results
         document.getElementById("media-container").style.display = "none";
         document.getElementById("outputPanel").classList.add("active");
-        // Clean output: remove HTML tags and trim whitespace
-        let cleanedOutput = t.replace(/<[^>]*>/g, '').trim();
-        // Remove leading empty lines
-        cleanedOutput = cleanedOutput.split('\n').filter(line => line.trim()).join('\n');
+        // Clean output: remove HTML tags, scripts, and trim whitespace
+        let cleanedOutput = t.replace(/<script[^>]*>.*?<\/script>/gi, '')  // Remove scripts
+                             .replace(/<[^>]*>/g, '')  // Remove HTML tags
+                             .replace(/&[a-z]+;/g, '')  // Remove HTML entities
+                             .trim();
+        // Remove leading and trailing empty lines
+        cleanedOutput = cleanedOutput.split('\n')
+                                     .filter(line => line.trim())
+                                     .join('\n')
+                                     .replace(/\n\n+/g, '\n');  // Remove excessive blank lines
         document.getElementById("outputContent").innerText = cleanedOutput;
         return;
       }
@@ -667,6 +673,10 @@ function rotatePhonePhoto(camera, degrees) {
 }
 
 function capturePhoneCameras() {
+  // Close output panel if it's open
+  document.getElementById("outputPanel").classList.remove("active");
+  document.getElementById("media-container").style.display = "flex";
+  
   const output = document.getElementById("output");
   const phoneCapture = document.getElementById("phoneCapture");
   output.innerText = "Freeing Pi camera and capturing phone cameras...";
