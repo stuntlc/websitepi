@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Skunk Works Pi Control</title>
+<title>Skunk Works NOC</title>
 
 <style>
 * {
@@ -12,13 +12,18 @@
   box-sizing: border-box;
 }
 
+html, body {
+  height: 100%;
+}
+
 body {
   background: url("skunk-bg.jpg") no-repeat center center fixed;
   background-size: cover;
   color: #eee;
   font-family: Arial, sans-serif;
-  min-height: 100vh;
-  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 body::before {
@@ -34,59 +39,56 @@ body::before {
 
 /* --- TOP BAR --- */
 .topbar {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  background: rgba(0, 0, 0, 0.7);
-  backdrop-filter: blur(6px);
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.8);
-  padding: 12px 16px;
+  position: relative;
   z-index: 1000;
+  background: rgba(0, 0, 0, 0.8);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.9);
+  padding: 8px 12px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 6px;
 }
 
 .topbar h1 {
   font-family: "Courier New", monospace;
-  font-size: clamp(20px, 5vw, 32px);
-  letter-spacing: 3px;
-  text-shadow: 0 0 10px rgba(0, 0, 0, 0.8);
+  font-size: clamp(16px, 4vw, 24px);
+  letter-spacing: 2px;
+  text-shadow: 0 0 10px rgba(0, 255, 0, 0.8);
   text-align: center;
   color: #00ff00;
+  margin: 0;
 }
 
 .controls-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 4px;
   justify-content: center;
   align-items: center;
 }
 
 /* --- BUTTONS --- */
 button, a {
-  padding: 8px 12px;
-  font-size: clamp(11px, 2vw, 14px);
-  border-radius: 6px;
-  border: 1px solid rgba(0, 255, 0, 0.3);
+  padding: 5px 8px;
+  font-size: 11px;
+  border-radius: 4px;
+  border: 1px solid rgba(0, 255, 0, 0.4);
   cursor: pointer;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.6);
   color: #ddd;
   text-decoration: none;
   transition: all 0.2s ease;
   white-space: nowrap;
   font-weight: 500;
-  box-shadow: 0 0 8px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 0 8px rgba(0, 0, 0, 0.6);
 }
 
 button:hover, a:hover {
-  background: rgba(0, 255, 0, 0.1);
+  background: rgba(0, 255, 0, 0.15);
   border-color: #00ff00;
   color: #00ff00;
-  text-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
-  transform: translateY(-2px);
+  text-shadow: 0 0 10px rgba(0, 255, 0, 0.6);
+  transform: translateY(-1px);
 }
 
 button:active, a:active {
@@ -97,90 +99,94 @@ button:active, a:active {
 .main {
   position: relative;
   z-index: 2;
-  margin-top: clamp(120px, 15vw, 160px);
+  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 20px 16px 40px;
+  padding: 12px 12px;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 #output {
   text-align: center;
-  font-size: clamp(12px, 2vw, 16px);
-  text-shadow: 0 0 5px rgba(0, 0, 0, 0.8);
-  margin: 15px 0;
+  font-size: clamp(11px, 1.5vw, 14px);
+  text-shadow: 0 0 5px rgba(0, 255, 0, 0.6);
+  margin: 8px 0;
   max-width: 90vw;
   word-wrap: break-word;
   white-space: pre-wrap;
-  background: rgba(0, 0, 0, 0.4);
-  padding: 10px;
+  background: rgba(0, 0, 0, 0.5);
+  padding: 8px;
   border-radius: 4px;
-  border: 1px solid rgba(0, 255, 0, 0.2);
-  min-height: 20px;
+  border: 1px solid rgba(0, 255, 0, 0.4);
+  min-height: 18px;
+  color: #00ff00;
+  font-weight: 500;
 }
 
 #preview, #live {
-  margin-top: 20px;
-  max-width: min(90vw, 800px);
-  max-height: 65vh;
-  border-radius: 8px;
-  box-shadow: 0 0 25px rgba(0, 0, 0, 0.9);
+  margin-top: 8px;
+  max-width: min(85vw, 600px);
+  max-height: 45vh;
+  border-radius: 6px;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.9);
   object-fit: contain;
-  border: 2px solid rgba(0, 255, 0, 0.2);
+  border: 1px solid rgba(0, 255, 0, 0.3);
 }
 
 #live {
   display: none;
-  width: min(95vw, 850px);
+  width: min(90vw, 650px);
   height: auto;
-  max-height: 70vh;
+  max-height: 50vh;
   transform: rotate(180deg);
   transition: transform 0.3s ease;
 }
 
 #phoneCapture {
   display: none;
-  margin-top: 20px;
+  margin-top: 8px;
   width: 100%;
 }
 
 .phonePhotos {
   display: flex;
   justify-content: center;
-  gap: 20px;
+  gap: 12px;
   flex-wrap: wrap;
   max-width: 95vw;
 }
 
 .phonePhotoFrame {
   flex: 1;
-  min-width: min(45vw, 350px);
-  max-width: min(50vw, 450px);
+  min-width: min(42vw, 280px);
+  max-width: min(48vw, 350px);
   text-align: center;
 }
 
 .phonePhoto {
   width: 100%;
-  max-height: 60vh;
+  max-height: 50vh;
   object-fit: contain;
-  border-radius: 8px;
-  box-shadow: 0 0 20px rgba(0, 0, 0, 0.9);
-  border: 2px solid rgba(0, 255, 0, 0.2);
+  border-radius: 6px;
+  box-shadow: 0 0 15px rgba(0, 0, 0, 0.9);
+  border: 1px solid rgba(0, 255, 0, 0.3);
   transition: transform 0.3s ease;
 }
 
 .phonePhotoLabel {
-  margin: 12px 0 8px;
+  margin: 6px 0 4px;
   font-family: "Courier New", monospace;
-  font-size: 13px;
+  font-size: 10px;
   color: #00ff00;
 }
 
 .phonePhotoControls {
   display: flex;
   justify-content: center;
-  gap: 8px;
+  gap: 4px;
   flex-wrap: wrap;
 }
 
@@ -188,94 +194,62 @@ button:active, a:active {
 #rotateControls {
   position: absolute;
   top: 50%;
-  right: max(15px, 2vw);
+  right: max(10px, 1.5vw);
   transform: translateY(-50%);
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 6px;
   z-index: 2000;
 }
 
 #rotateControls button {
-  padding: 6px 10px;
-  font-size: 12px;
+  padding: 4px 6px;
+  font-size: 10px;
 }
 
 /* --- RESPONSIVE DESIGN --- */
 @media (max-width: 768px) {
   .topbar {
-    padding: 10px 12px;
-    gap: 10px;
-  }
-
-  .topbar h1 {
-    font-size: 20px;
-    margin-bottom: 6px;
-  }
-
-  .controls-row {
-    gap: 6px;
-  }
-
-  button, a {
-    padding: 7px 10px;
-    font-size: 11px;
-  }
-
-  .main {
-    margin-top: 140px;
-    padding: 15px 12px 30px;
-  }
-
-  #preview, #live {
-    max-width: min(95vw, 600px);
-    max-height: 50vh;
-  }
-
-  .phonePhotoFrame {
-    min-width: min(90vw, 300px);
-    max-width: min(95vw, 400px);
-  }
-
-  .phonePhoto {
-    max-height: 50vh;
-  }
-
-  #rotateControls {
-    right: 10px;
-  }
-
-  #rotateControls button {
-    padding: 5px 8px;
-    font-size: 11px;
-  }
-}
-
-@media (max-width: 480px) {
-  .topbar {
-    padding: 8px 10px;
-  }
-
-  .topbar h1 {
-    font-size: 18px;
-  }
-
-  .controls-row {
+    padding: 6px 10px;
     gap: 5px;
   }
 
+  .topbar h1 {
+    font-size: 16px;
+    margin-bottom: 4px;
+  }
+
+  .controls-row {
+    gap: 3px;
+  }
+
   button, a {
-    padding: 6px 9px;
+    padding: 4px 6px;
     font-size: 10px;
   }
 
   .main {
-    margin-top: 130px;
+    padding: 8px 10px;
+  }
+
+  #output {
+    font-size: 10px;
+    padding: 6px;
+    margin: 6px 0;
   }
 
   #preview, #live {
-    max-width: 95vw;
-    max-height: 45vh;
+    max-width: min(90vw, 500px);
+    max-height: 40vh;
+  }
+
+  .phonePhotoFrame {
+    min-width: min(90vw, 250px);
+    max-width: min(95vw, 320px);
+  }
+
+  .phonePhoto {
+    max-height: 40vh;
   }
 
   #rotateControls {
@@ -283,8 +257,52 @@ button:active, a:active {
   }
 
   #rotateControls button {
-    padding: 4px 7px;
-    font-size: 10px;
+    padding: 3px 5px;
+    font-size: 9px;
+  }
+}
+
+@media (max-width: 480px) {
+  .topbar {
+    padding: 5px 8px;
+    gap: 4px;
+  }
+
+  .topbar h1 {
+    font-size: 14px;
+  }
+
+  .controls-row {
+    gap: 2px;
+  }
+
+  button, a {
+    padding: 4px 5px;
+    font-size: 9px;
+  }
+
+  .main {
+    padding: 6px 8px;
+  }
+
+  #output {
+    font-size: 9px;
+    padding: 5px;
+    margin: 4px 0;
+  }
+
+  #preview, #live {
+    max-width: 95vw;
+    max-height: 35vh;
+  }
+
+  #rotateControls {
+    right: 6px;
+  }
+
+  #rotateControls button {
+    padding: 3px 4px;
+    font-size: 8px;
   }
 }
 </style>
@@ -292,30 +310,30 @@ button:active, a:active {
 <body>
 
 <div class="topbar">
-  <h1>SKUNK WORKS</h1>
+  <h1>SKUNK WORKS NOC</h1>
   
   <div class="controls-row">
-    <button onclick="runAction('netcheck.sh')">🌐 Network</button>
-    <button onclick="location.href='network.html'">🗺️ OUI Map</button>
-    <button onclick="location.href='sms.html'">📱 SMS</button>
-    <button onclick="runAction('capture.sh')">📸 Cheese</button>
-    <button onclick="startLive()">📹 Live</button>
-    <button onclick="runAction('sensor.sh')">⚡ Volts</button>
-    <button onclick="runAction('fmradiophone')">📻 FM ON</button>
-    <button onclick="runAction('fmphoneoff')">🔇 FM OFF</button>
-    <button onclick="runAction('read_light.py')">💡 Lumen</button>
+    <button onclick="runAction('netcheck.sh')">📡Network</button>
+    <button onclick="location.href='network.html'">🗺OUI</button>
+    <button onclick="location.href='sms.html')">📱SMS</button>
+    <button onclick="runAction('capture.sh')">📷Cheese</button>
+    <button onclick="startLive()">📹Live</button>
+    <button onclick="runAction('sensor.sh')">⚡Volts</button>
+    <button onclick="runAction('fmradiophone')">📻FMON</button>
+    <button onclick="runAction('fmphoneoff')">📻OFF</button>
+    <button onclick="runAction('read_light.py')">💡Lumen</button>
   </div>
 
   <div class="controls-row">
-    <button onclick="location.href='websh.html'">💻 WebShell</button>
-    <button onclick="location.href='btmic.html'">🎤 BT Mic</button>
-    <button onclick="runAction('relayon.sh')">🔌 LED ON</button>
-    <button onclick="runAction('relayoff.sh')">⚫ LED OFF</button>
-    <button onclick="runAction('phonelight1')">☀️ Light ON</button>
-    <button onclick="runAction('phonelight0')">🌑 Light OFF</button>
-    <button onclick="runAction('meteo.cgi')">🌤️ Weather</button>
-    <button onclick="runAction('cleanup.sh')">🧹 Clean</button>
-    <button onclick="capturePhoneCameras()">📷 Phone Cams</button>
+    <button onclick="location.href='websh.html'">💻Shell</button>
+    <button onclick="location.href='btmic.html'">🎤Mic</button>
+    <button onclick="runAction('relayon.sh')">🔌ON</button>
+    <button onclick="runAction('relayoff.sh')">⚫OFF</button>
+    <button onclick="runAction('phonelight1')">☀️ON</button>
+    <button onclick="runAction('phonelight0')">🌑OFF</button>
+    <button onclick="runAction('meteo.cgi')">⛅Weather</button>
+    <button onclick="runAction('cleanup.sh')">🧹Clean</button>
+    <button onclick="capturePhoneCameras()">📸Phone</button>
   </div>
 </div>
 
@@ -326,8 +344,8 @@ button:active, a:active {
   <div style="position: relative; display: inline-block;">
     <img id="live" src="" alt="Live camera stream">
     <div id="rotateControls">
-      <button onclick="rotateLeft()">⟲ Left</button>
-      <button onclick="rotateRight()">⟳ Right</button>
+      <button onclick="rotateLeft()">⟲Left</button>
+      <button onclick="rotateRight()">⟳Right</button>
     </div>
   </div>
 
@@ -335,18 +353,18 @@ button:active, a:active {
     <div class="phonePhotos">
       <div class="phonePhotoFrame">
         <img id="phoneRear" class="phonePhoto" alt="Rear phone camera photo">
-        <div class="phonePhotoLabel">REAR CAMERA</div>
+        <div class="phonePhotoLabel">REAR</div>
         <div class="phonePhotoControls">
-          <button onclick="rotatePhonePhoto('rear', -90)">⟲ Left</button>
-          <button onclick="rotatePhonePhoto('rear', 90)">⟳ Right</button>
+          <button onclick="rotatePhonePhoto('rear', -90)">⟲L</button>
+          <button onclick="rotatePhonePhoto('rear', 90)">⟳R</button>
         </div>
       </div>
       <div class="phonePhotoFrame">
         <img id="phoneFront" class="phonePhoto" alt="Front phone camera photo">
-        <div class="phonePhotoLabel">FRONT CAMERA</div>
+        <div class="phonePhotoLabel">FRONT</div>
         <div class="phonePhotoControls">
-          <button onclick="rotatePhonePhoto('front', -90)">⟲ Left</button>
-          <button onclick="rotatePhonePhoto('front', 90)">⟳ Right</button>
+          <button onclick="rotatePhonePhoto('front', -90)">⟲L</button>
+          <button onclick="rotatePhonePhoto('front', 90)">⟳R</button>
         </div>
       </div>
     </div>
