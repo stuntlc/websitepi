@@ -644,7 +644,7 @@ function runAction(script) {
       const live = document.getElementById("live");
       const rotateControls = document.getElementById("rotateControls");
 
-      if (script === "netcheck.sh" || script === "meteo.cgi" || script === "relayon.sh" || script === "relayoff.sh") {
+      if (script === "netcheck.sh" || script === "meteo.cgi") {
         // Hide media and show full output panel for text-based results
         document.getElementById("media-container").style.display = "none";
         document.getElementById("outputPanel").classList.add("active");
