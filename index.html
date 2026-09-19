@@ -208,6 +208,7 @@ button:active, a:active {
 }
 
 #outputPanel .close-btn {
+  display: none;
   position: absolute;
   top: 10px;
   right: 10px;
@@ -505,7 +506,6 @@ button:active, a:active {
 
 <div class="main">
   <div id="outputPanel">
-    <button class="close-btn" onclick="closeOutputPanel()">✕ Close</button>
     <pre id="outputContent"></pre>
   </div>
 
@@ -614,6 +614,10 @@ function startLive() {
 ------------------------- */
 function runAction(script) {
   if (script === "capture.sh") {
+    // Close output panel if open
+    document.getElementById("outputPanel").classList.remove("active");
+    document.getElementById("media-container").style.display = "flex";
+    
     fetch("/cgi-bin/stop_live.sh").then(() => {
       liveMode = false;
       document.getElementById("live").style.display = "none";
@@ -633,6 +637,16 @@ function runAction(script) {
           }
         });
     });
+    return;
+  }
+
+  // Check if output panel is open and this is not a network/weather button
+  const outputPanel = document.getElementById("outputPanel");
+  const isNetworkOrWeather = script === "netcheck.sh" || script === "meteo.cgi";
+  
+  if (outputPanel.classList.contains("active") && !isNetworkOrWeather) {
+    // Close the panel and return (button click will trigger action on next click)
+    closeOutputPanel();
     return;
   }
 
