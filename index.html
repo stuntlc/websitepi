@@ -2,87 +2,47 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Skunk Works Pi Control</title>
 
 <style>
+:root {
+  --ink: #d8f3dc;
+  --muted: #8bb99b;
+  --green: #52d273;
+  --line: #24583a;
+  --panel: rgba(4, 18, 12, .9);
+  --red: #ee6b72;
+}
+* { box-sizing: border-box; }
 body {
-  background: url("skunk-bg.jpg") no-repeat center center fixed;
-  background-size: cover;
-  color: #eee;
-  font-family: Arial, sans-serif;
   margin: 0;
-  text-align: center;
-}
-
-/* --- TOP BAR --- */
-.topbar {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: rgba(0,0,0,0.6);
-  backdrop-filter: blur(4px);
-  box-shadow: 0 0 10px black;
-  padding: 8px 20px;
-  z-index: 1000;
-}
-
-h1 {
+  min-height: 100vh;
+  color: var(--ink);
+  background: #07130d url("skunk-bg.jpg") center / cover fixed;
   font-family: "Courier New", monospace;
-  font-size: 30px;
-  letter-spacing: 4px;
-  text-shadow: 0 0 10px black;
-  margin: 0;
-  flex: 0 0 auto;
 }
-
-/* --- BUTTONS --- */
-.controls {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 3px;
-}
-
-button {
-  padding: 5px 8px;
-  font-size: 14px;
-  border-radius: 8px;
-  border: none;
-  cursor: pointer;
-  background: rgba(0,0,0,0.6);
-  color: white;
-  box-shadow: 0 0 8px black;
-  transition: background 0.2s;
-}
-
-button:hover {
-  background: rgba(255,255,255,0.2);
-}
-
-/* --- MAIN CONTENT --- */
-.main {
-  margin-top: 90px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-}
-
-#output {
-  margin-top: 10px;
-  font-size: 16px;
-  text-shadow: 0 0 5px black;
-}
+body::before { content: ""; position: fixed; inset: 0; background: rgba(1, 10, 6, .78); pointer-events: none; }
+main { position: relative; max-width: 1400px; margin: 0 auto; padding: 28px 20px 44px; }
+header { display: flex; align-items: end; justify-content: space-between; gap: 20px; border-bottom: 1px solid var(--line); padding-bottom: 18px; }
+h1 { margin: 0; color: var(--green); font-size: clamp(22px, 4vw, 36px); letter-spacing: 3px; }
+.subtitle { color: var(--muted); margin: 8px 0 0; font-size: 13px; }
+.actions, .controls, .phonePhotoControls { display: flex; flex-wrap: wrap; gap: 8px; }
+button, a { border: 1px solid var(--line); background: #0b2517; color: var(--ink); padding: 9px 13px; font: inherit; text-decoration: none; cursor: pointer; }
+button:hover, a:hover { border-color: var(--green); color: white; }
+.statusbar { display: flex; justify-content: space-between; gap: 16px; color: var(--muted); padding: 14px 0; font-size: 13px; }
+.panel { background: var(--panel); border: 1px solid var(--line); padding: 16px; box-shadow: 0 0 22px rgba(0,0,0,.45); }
+.panel-title { display: flex; justify-content: space-between; align-items: center; margin: 0 0 14px; color: var(--green); font-size: 14px; letter-spacing: 1px; }
+.main { display: grid; gap: 18px; }
+#output { min-height: 24px; margin: 0; padding: 10px; border: 1px solid var(--line); background: rgba(1, 12, 7, .55); color: var(--muted); white-space: pre-wrap; overflow-wrap: anywhere; }
+.media-panel { min-width: 0; text-align: center; }
 
 #preview, #live {
   margin-top: 15px;
   max-width: 90%;
   max-height: 70vh;
   border-radius: 8px;
-  box-shadow: 0 0 20px rgba(0,0,0,0.8);
+  box-shadow: 0 0 20px rgba(0,0,0,.45);
   object-fit: contain;
 }
 
@@ -144,41 +104,52 @@ button:hover {
   gap: 10px;
   z-index: 2000;
 }
+@media (max-width: 760px) {
+  main { padding: 18px 12px 30px; }
+  header, .statusbar { align-items: flex-start; flex-direction: column; }
+  .actions { width: 100%; }
+  .top-actions { width: 100%; }
+}
 </style>
 </head>
 <body>
 
-<div class="topbar">
-  <div class="controls">
-    <button onclick="runAction('netcheck.sh')">🌐Network</button>
-    <button onclick="location.href='network.html'">◎OUI Map</button>
-    <button onclick="location.href='sms.html'">💬SMS</button>
-    <button onclick="runAction('capture.sh')">📸Cheese</button>
-    <button onclick="startLive()">🎥Live</button>
-    <button onclick="runAction('sensor.sh')">📟Volts</button>
-    <button onclick="runAction('fmradiophone')">📻FM ON</button>
-    <button onclick="runAction('fmphoneoff')">❌FM OFF</button>
-    <button onclick="runAction('read_light.py')">💡Lumen</button>
-    <button onclick="location.href='websh.html'">⌘WebShell</button>
-    <button onclick="location.href='btmic.html'">🎙BT Mic</button>
-    <button onclick="capturePhoneCameras()">📱Camera</button>
-  </div>
-
-  <h1>SKUNK WORKS CONTROL</h1>
-
-  <div class="controls">
-    <button onclick="runAction('relayon.sh')">⚡LED ON</button>
-    <button onclick="runAction('relayoff.sh')">❌LED OFF</button>
-    <button onclick="runAction('phonelight1')">🔦ON</button>
-    <button onclick="runAction('phonelight0')">❌OFF</button>
-    <button onclick="runAction('meteo.cgi')">🌦Weather</button>
-    <button onclick="runAction('cleanup.sh')">🧹Clean</button>
-  </div>
-</div>
-
-<div class="main">
-  <div id="output"></div>
-  <img id="preview" src="" alt="Latest photo will appear here">
+<main>
+  <header>
+    <div>
+      <h1>SKUNK WORKS CONTROL</h1>
+      <p class="subtitle">PI OPERATIONS // CAMERA, RADIO, LIGHTS, NETWORK</p>
+    </div>
+    <div class="actions top-actions">
+      <a href="websh.html">[ WEBSHELL ]</a>
+      <a href="network.html">[ OUI MAP ]</a>
+      <a href="sms.html">[ SMS ]</a>
+      <a href="btmic.html">[ BT MIC ]</a>
+    </div>
+  </header>
+  <div class="statusbar"><span>LOCAL CONTROL SURFACE</span><span id="mode-status">READY</span></div>
+  <section class="panel">
+    <h2 class="panel-title"><span>PI COMMANDS</span><span>ONLINE</span></h2>
+    <div class="controls">
+      <button onclick="runAction('netcheck.sh')">NETWORK</button>
+      <button onclick="runAction('capture.sh')">CAPTURE</button>
+      <button onclick="startLive()">LIVE</button>
+      <button onclick="runAction('sensor.sh')">VOLTS</button>
+      <button onclick="runAction('fmradiophone')">FM ON</button>
+      <button onclick="runAction('fmphoneoff')">FM OFF</button>
+      <button onclick="runAction('read_light.py')">LUMEN</button>
+      <button onclick="runAction('relayon.sh')">LED ON</button>
+      <button onclick="runAction('relayoff.sh')">LED OFF</button>
+      <button onclick="runAction('phonelight1')">PHONE LIGHT ON</button>
+      <button onclick="runAction('phonelight0')">PHONE LIGHT OFF</button>
+      <button onclick="runAction('meteo.cgi')">WEATHER</button>
+      <button onclick="runAction('cleanup.sh')">CLEAN</button>
+      <button onclick="capturePhoneCameras()">PHONE CAMERAS</button>
+    </div>
+  </section>
+  <section class="panel media-panel">
+    <div id="output">READY.</div>
+    <img id="preview" src="" alt="Latest photo will appear here">
 
   <div style="position: relative; display: inline-block;">
     <img id="live" src="" alt="Live camera stream">
@@ -208,7 +179,8 @@ button:hover {
       </div>
     </div>
   </section>
-</div>
+</section>
+</main>
 
 <script>
 let liveMode = false;

@@ -1,12 +1,54 @@
-<h2>Received SMS Messages</h2>
-<pre id="log"></pre>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SMS Log | Skunk Works</title>
+<style>
+:root { --ink: #d8f3dc; --muted: #8bb99b; --green: #52d273; --line: #24583a; --panel: rgba(4, 18, 12, .9); }
+* { box-sizing: border-box; }
+body { margin: 0; min-height: 100vh; color: var(--ink); background: #07130d url("skunk-bg.jpg") center / cover fixed; font-family: "Courier New", monospace; }
+body::before { content: ""; position: fixed; inset: 0; background: rgba(1, 10, 6, .78); pointer-events: none; }
+main { position: relative; max-width: 1180px; margin: 0 auto; padding: 28px 20px 44px; }
+header { display: flex; align-items: end; justify-content: space-between; gap: 20px; border-bottom: 1px solid var(--line); padding-bottom: 18px; }
+h1 { margin: 0; color: var(--green); font-size: clamp(22px, 4vw, 36px); letter-spacing: 3px; }
+.subtitle { color: var(--muted); margin: 8px 0 0; font-size: 13px; }
+a { border: 1px solid var(--line); background: #0b2517; color: var(--ink); padding: 9px 13px; font: inherit; text-decoration: none; }
+a:hover { border-color: var(--green); color: white; }
+.statusbar { display: flex; justify-content: space-between; gap: 16px; color: var(--muted); padding: 14px 0; font-size: 13px; }
+.panel { background: var(--panel); border: 1px solid var(--line); padding: 16px; box-shadow: 0 0 22px rgba(0,0,0,.45); }
+.panel-title { display: flex; justify-content: space-between; align-items: center; margin: 0 0 14px; color: var(--green); font-size: 14px; letter-spacing: 1px; }
+#log { min-height: 60vh; max-height: 70vh; overflow: auto; margin: 0; padding: 12px; border: 1px solid var(--line); background: rgba(1, 12, 7, .55); color: var(--ink); white-space: pre-wrap; overflow-wrap: anywhere; }
+@media (max-width: 600px) { main { padding: 18px 12px 30px; } header, .statusbar { align-items: flex-start; flex-direction: column; } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div>
+      <h1>SMS LOG</h1>
+      <p class="subtitle">ANDROID MODEM // RECEIVED MESSAGE ARCHIVE</p>
+    </div>
+    <a href="sms.html">[ SMS CONSOLE ]</a>
+  </header>
+  <div class="statusbar"><span>MESSAGE LOG STREAM</span><span id="updated">POLLING...</span></div>
+  <section class="panel">
+    <h2 class="panel-title"><span>RECEIVED SMS MESSAGES</span><span>LIVE</span></h2>
+    <pre id="log"></pre>
+  </section>
+</main>
 
 <script>
 function loadLog() {
   fetch('/cgi-bin/smslog.cgi')
     .then(r => r.text())
-    .then(t => document.getElementById('log').textContent = t);
+    .then(t => {
+      document.getElementById('log').textContent = t;
+      document.getElementById('updated').textContent = new Date().toLocaleTimeString();
+    });
 }
 setInterval(loadLog, 3000);
 loadLog();
 </script>
+</body>
+</html>
