@@ -116,6 +116,7 @@ button:active, a:active {
   align-items: flex-start;
   width: 100%;
   max-width: 95vw;
+  position: relative;
 }
 
 .title-side {
@@ -131,7 +132,26 @@ button:active, a:active {
   font-family: "Courier New", monospace;
   font-size: clamp(14px, 3vw, 20px);
   letter-spacing: 2px;
-  text-shadow: 0 0 10px rgba(0, 255, 0, 0.8);
+  text-shadow: 0 0 15px rgba(0, 255, 100, 1);
+  color: #00ff00;
+  margin: 0;
+  white-space: nowrap;
+}
+
+.controls-side {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: fit-content;
+}
+
+.controls-side h1 {
+  writing-mode: vertical-lr;
+  transform: rotate(180deg);
+  font-family: "Courier New", monospace;
+  font-size: clamp(14px, 3vw, 20px);
+  letter-spacing: 2px;
+  text-shadow: 0 0 15px rgba(0, 255, 100, 1);
   color: #00ff00;
   margin: 0;
   white-space: nowrap;
@@ -139,19 +159,19 @@ button:active, a:active {
 
 #output {
   text-align: center;
-  font-size: clamp(10px, 1.2vw, 12px);
-  text-shadow: 0 0 5px rgba(0, 255, 0, 0.6);
+  font-size: clamp(9px, 1.1vw, 11px);
+  text-shadow: 0 0 8px rgba(0, 255, 100, 0.9);
   margin: 0;
   max-width: 12vw;
   word-wrap: break-word;
   white-space: pre-wrap;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.6);
   padding: 6px;
   border-radius: 4px;
-  border: 1px solid rgba(0, 255, 0, 0.4);
+  border: 1px solid rgba(0, 255, 100, 0.6);
   min-height: 16px;
-  color: #00ff00;
-  font-weight: 500;
+  color: #00ff66;
+  font-weight: 600;
 }
 
 #outputPanel {
@@ -176,12 +196,13 @@ button:active, a:active {
 #outputPanel pre {
   font-family: "Courier New", monospace;
   font-size: 12px;
-  color: #00ff00;
-  text-shadow: 0 0 5px rgba(0, 255, 0, 0.6);
+  color: #00ff66;
+  text-shadow: 0 0 8px rgba(0, 255, 100, 0.9);
   margin: 0;
   white-space: pre-wrap;
   word-wrap: break-word;
   flex: 1;
+  text-align: center;
 }
 
 #outputPanel .close-btn {
@@ -269,13 +290,30 @@ button:active, a:active {
   transform: translateY(-50%);
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
   z-index: 2000;
 }
 
 #rotateControls button {
-  padding: 4px 6px;
-  font-size: 10px;
+  padding: 10px 14px;
+  font-size: 14px;
+  font-weight: bold;
+  background: rgba(0, 0, 0, 0.7);
+  color: #00ff66;
+  border: 2px solid rgba(0, 255, 100, 0.7);
+  border-radius: 6px;
+  cursor: pointer;
+  text-shadow: 0 0 8px rgba(0, 255, 100, 0.8);
+  box-shadow: 0 0 12px rgba(0, 255, 100, 0.4);
+  transition: all 0.2s ease;
+}
+
+#rotateControls button:hover {
+  background: rgba(0, 255, 100, 0.15);
+  border-color: #00ff00;
+  text-shadow: 0 0 12px rgba(0, 255, 100, 1);
+  box-shadow: 0 0 18px rgba(0, 255, 100, 0.6);
+  transform: scale(1.05);
 }
 
 /* --- RESPONSIVE DESIGN --- */
@@ -315,6 +353,13 @@ button:active, a:active {
     margin: 4px 0;
   }
 
+  .controls-side h1 {
+    writing-mode: horizontal-tb;
+    transform: none;
+    text-align: center;
+    margin: 4px 0;
+  }
+
   #output {
     font-size: 9px;
     padding: 4px;
@@ -345,8 +390,8 @@ button:active, a:active {
   }
 
   #rotateControls button {
-    padding: 3px 5px;
-    font-size: 9px;
+    padding: 8px 12px;
+    font-size: 12px;
   }
 }
 
@@ -384,6 +429,13 @@ button:active, a:active {
     font-size: 12px;
   }
 
+  .controls-side h1 {
+    writing-mode: horizontal-tb;
+    transform: none;
+    text-align: center;
+    font-size: 12px;
+  }
+
   #output {
     font-size: 8px;
     padding: 4px;
@@ -409,8 +461,8 @@ button:active, a:active {
   }
 
   #rotateControls button {
-    padding: 3px 4px;
-    font-size: 8px;
+    padding: 6px 10px;
+    font-size: 10px;
   }
 }
 </style>
@@ -454,7 +506,6 @@ button:active, a:active {
   <div class="media-container" id="media-container">
     <div class="title-side">
       <h1>SKUNK WORKS NOC</h1>
-      <div id="output">READY</div>
     </div>
     
     <div style="display: flex; flex-direction: column; align-items: center; flex: 1;">
@@ -467,6 +518,11 @@ button:active, a:active {
           <button onclick="rotateRight()">⟳Right</button>
         </div>
       </div>
+    </div>
+
+    <div class="controls-side">
+      <h1>CONTROLS</h1>
+      <div id="output">READY</div>
     </div>
   </div>
 
