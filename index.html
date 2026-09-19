@@ -195,14 +195,16 @@ button:active, a:active {
 
 #outputPanel pre {
   font-family: "Courier New", monospace;
-  font-size: 12px;
-  color: #00ff66;
-  text-shadow: 0 0 8px rgba(0, 255, 100, 0.9);
+  font-size: 15px;
+  font-weight: bold;
+  color: #00ff88;
+  text-shadow: 0 0 12px rgba(0, 255, 150, 1);
   margin: 0;
   white-space: pre-wrap;
   word-wrap: break-word;
   flex: 1;
   text-align: center;
+  line-height: 1.5;
 }
 
 #outputPanel .close-btn {
@@ -368,7 +370,7 @@ button:active, a:active {
   }
 
   #outputPanel pre {
-    font-size: 11px;
+    font-size: 13px;
   }
 
   #preview, #live {
@@ -448,7 +450,7 @@ button:active, a:active {
   }
 
   #outputPanel pre {
-    font-size: 10px;
+    font-size: 11px;
   }
 
   #preview, #live {
@@ -642,7 +644,11 @@ function runAction(script) {
         // Hide media and show full output panel for text-based results
         document.getElementById("media-container").style.display = "none";
         document.getElementById("outputPanel").classList.add("active");
-        document.getElementById("outputContent").innerText = t;
+        // Clean output: remove HTML tags and trim whitespace
+        let cleanedOutput = t.replace(/<[^>]*>/g, '').trim();
+        // Remove leading empty lines
+        cleanedOutput = cleanedOutput.split('\n').filter(line => line.trim()).join('\n');
+        document.getElementById("outputContent").innerText = cleanedOutput;
         return;
       }
 
