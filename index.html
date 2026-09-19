@@ -664,7 +664,14 @@ function runAction(script) {
         return;
       }
 
-      output.innerText = t;
+      // Handle LED status display
+      if (script === "relayon.sh") {
+        output.innerText = t || "LED ON";
+      } else if (script === "relayoff.sh") {
+        output.innerText = t || "LED OFF";
+      } else {
+        output.innerText = t;
+      }
     });
 }
 
