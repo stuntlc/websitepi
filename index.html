@@ -647,7 +647,7 @@ function runAction(script) {
         // Clean output: remove HTML tags, scripts, CSS, and trim whitespace
         let cleanedOutput = t.replace(/<style[^>]*>.*?<\/style>/gi, '')  // Remove style tags
                              .replace(/<script[^>]*>.*?<\/script>/gi, '')  // Remove scripts
-                             .replace(/\.\w+\s*\{[^}]*\}/g, '')  // Remove CSS class definitions (.classname { ... })
+                             .replace(/\.[\w-]+\s*\{[^}]*\}/g, '')  // Remove CSS class definitions (.classname-with-hyphens { ... })
                              .replace(/<[^>]*>/g, '')  // Remove HTML tags
                              .replace(/&[a-z]+;/g, '')  // Remove HTML entities
                              .trim();
