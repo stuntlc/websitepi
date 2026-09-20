@@ -213,7 +213,11 @@ async function stopReceiver() {
   }
 }
 
+let stopAllCalled = false;
+
 function stopAll() {
+  if (stopAllCalled) return Promise.resolve();
+  stopAllCalled = true;
   return Promise.all([
     fetch("/cgi-bin/udpmic.cgi?action=stop", { cache: "no-store", keepalive: true }).catch(() => {}),
     fetch("/cgi-bin/udpmic-adb.cgi?action=stop", { cache: "no-store", keepalive: true }).catch(() => {}),

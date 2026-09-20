@@ -10,7 +10,7 @@ PATTERN="piscripts/udpmic.py"
 
 # Serialize start/stop requests so double-clicks can't race each other into a bad state.
 exec 200>"$LOCK"
-flock -w 10 200 || { echo "ERROR: receiver busy, try again"; exit 1; }
+flock -w 20 200 || { echo "ERROR: receiver busy, try again"; exit 1; }
 
 port_busy() {
   # Best-effort occupancy check; falls back to "unknown" (treated as free) if no tool is available.
