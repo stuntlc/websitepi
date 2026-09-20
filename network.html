@@ -6,20 +6,23 @@
 <title>OUI Recon | Skunk Works</title>
 <style>
 :root {
-  --ink: #d8f3dc;
-  --muted: #8bb99b;
-  --green: #52d273;
-  --line: #24583a;
-  --panel: rgba(4, 18, 12, 0.9);
-  --amber: #f2c14e;
+  --ink: #ffffff;
+  --muted: #d8f5df;
+  --green: #00ff66;
+  --line: #00a83f;
+  --panel: rgba(0, 0, 0, 0.94);
+  --amber: #ffe066;
 }
 * { box-sizing: border-box; }
 body {
   margin: 0;
   min-height: 100vh;
   color: var(--ink);
-  background: #07130d url("skunk-bg.jpg") center / cover fixed;
+  background: #000;
   font-family: "Courier New", monospace;
+  font-size: 14px;
+  line-height: 1.45;
+  font-weight: 600;
 }
 body::before {
   content: "";
@@ -44,7 +47,7 @@ button:hover, a:hover { border-color: var(--green); color: white; }
 .node-icon { display: block; font-size: 25px; line-height: 1; margin-bottom: 8px; }
 .raspberry-logo { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 28px; margin-bottom: 8px; border: 2px solid #e85d75; border-radius: 50% 50% 45% 45%; color: #ffd6dc; font-size: 12px; font-weight: bold; letter-spacing: 0; }
 .node-name { display: block; color: white; font-weight: bold; font-size: 13px; }
-.node-detail { display: block; color: var(--muted); font-size: 11px; line-height: 1.35; margin-top: 6px; overflow-wrap: anywhere; }
+.node-detail { display: block; color: var(--muted); font-size: 12px; line-height: 1.35; margin-top: 6px; overflow-wrap: anywhere; }
 .connector { height: 1px; background: var(--green); position: relative; }
 .connector::after { content: ">"; position: absolute; right: -2px; top: -9px; color: var(--green); }
 .ethernet-host { display: flex; align-items: center; gap: 10px; margin-top: 14px; padding: 10px 12px; border: 1px dashed var(--line); color: var(--muted); font-size: 12px; }
@@ -53,7 +56,7 @@ button:hover, a:hover { border-color: var(--green); color: white; }
 .leases { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px; }
 .lease { padding: 9px 10px; border-left: 3px solid var(--green); background: rgba(15, 52, 30, .5); }
 .lease strong { display: block; color: white; font-size: 13px; }
-.lease span { display: block; color: var(--muted); font-size: 11px; margin-top: 4px; overflow-wrap: anywhere; }
+.lease span { display: block; color: var(--muted); font-size: 12px; margin-top: 4px; overflow-wrap: anywhere; }
 .modem-neighbors { display: grid; gap: 8px; }
 .device-list { display: grid; gap: 9px; }
 .device { border-left: 3px solid var(--green); padding: 9px 10px; background: rgba(15, 52, 30, .5); }

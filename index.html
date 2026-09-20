@@ -17,10 +17,12 @@ html, body {
 }
 
 body {
-  background: url("skunk-bg.jpg") no-repeat center center fixed;
-  background-size: cover;
-  color: #eee;
-  font-family: Arial, sans-serif;
+  background: #000;
+  color: #fff;
+  font-family: "Courier New", monospace;
+  font-size: 14px;
+  line-height: 1.45;
+  font-weight: 600;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -71,16 +73,16 @@ body::before {
 /* --- BUTTONS --- */
 button, a {
   padding: 5px 8px;
-  font-size: 11px;
+  font-size: 13px;
   border-radius: 4px;
   border: 1px solid rgba(0, 255, 0, 0.4);
   cursor: pointer;
   background: rgba(0, 0, 0, 0.6);
-  color: #ddd;
+  color: #fff;
   text-decoration: none;
   transition: all 0.2s ease;
   white-space: nowrap;
-  font-weight: 500;
+  font-weight: 700;
   box-shadow: 0 0 8px rgba(0, 0, 0, 0.6);
 }
 
@@ -278,8 +280,9 @@ button:active, a:active {
 .phonePhotoLabel {
   margin: 4px 0 2px;
   font-family: "Courier New", monospace;
-  font-size: 10px;
+  font-size: 12px;
   color: #00ff00;
+  font-weight: 700;
 }
 
 .phonePhotoControls {
@@ -341,7 +344,7 @@ button:active, a:active {
 
   button, a {
     padding: 4px 6px;
-    font-size: 10px;
+    font-size: 12px;
   }
 
   .main {
@@ -368,7 +371,7 @@ button:active, a:active {
   }
 
   #output {
-    font-size: 9px;
+    font-size: 11px;
     padding: 4px;
     margin: 4px 0;
     max-width: 95vw;
@@ -418,7 +421,7 @@ button:active, a:active {
 
   button, a {
     padding: 4px 5px;
-    font-size: 9px;
+    font-size: 11px;
   }
 
   .main {
@@ -444,7 +447,7 @@ button:active, a:active {
   }
 
   #output {
-    font-size: 8px;
+    font-size: 10px;
     padding: 4px;
     margin: 4px 0;
     max-width: 95vw;
@@ -455,7 +458,7 @@ button:active, a:active {
   }
 
   #outputPanel pre {
-    font-size: 11px;
+    font-size: 12px;
   }
 
   #preview, #live {
@@ -469,9 +472,14 @@ button:active, a:active {
 
   #rotateControls button {
     padding: 6px 10px;
-    font-size: 10px;
+    font-size: 11px;
   }
 }
+
+body::before { background: rgba(0, 0, 0, 0.82); }
+.topbar, #outputPanel, #output, button, a { background-color: #000; }
+.topbar, #outputPanel { border-color: rgba(0, 255, 0, 0.7); }
+#output, #outputPanel pre, .phonePhotoLabel { color: #00ff66; font-weight: 700; }
 </style>
 </head>
 <body>

@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Sensors | Skunk Works</title>
 <style>
-:root { --ink: #d8f3dc; --muted: #8bb99b; --green: #52d273; --line: #24583a; --panel: rgba(4, 18, 12, .9); --amber: #f2c14e; --red: #ee6b72; --blue: #6ec8f2; }
+:root { --ink: #ffffff; --muted: #d8f5df; --green: #00ff66; --line: #00a83f; --panel: rgba(0, 0, 0, .94); --amber: #ffe066; --red: #ff7b83; --blue: #78d7ff; }
 * { box-sizing: border-box; }
-body { margin: 0; min-height: 100vh; color: var(--ink); background: #07130d url("skunk-bg.jpg") center / cover fixed; font-family: "Courier New", monospace; }
+body { margin: 0; min-height: 100vh; color: var(--ink); background: #000; font-family: "Courier New", monospace; font-size: 14px; line-height: 1.45; font-weight: 600; }
 body::before { content: ""; position: fixed; inset: 0; background: rgba(1, 10, 6, .78); pointer-events: none; }
 main { position: relative; max-width: 1180px; margin: 0 auto; padding: 28px 20px 44px; }
 header { display: flex; align-items: end; justify-content: space-between; gap: 20px; border-bottom: 1px solid var(--line); padding-bottom: 18px; }
@@ -24,7 +24,7 @@ button:hover, a:hover { border-color: var(--green); color: white; }
 .readout { display: flex; justify-content: space-between; gap: 10px; font-size: 12px; color: var(--muted); padding: 3px 0; }
 .readout span:last-child { color: var(--ink); overflow-wrap: anywhere; text-align: right; }
 canvas { width: 100%; height: 120px; display: block; margin-top: 8px; background: rgba(1, 12, 7, .55); border: 1px solid var(--line); }
-.legend { display: flex; gap: 12px; font-size: 11px; color: var(--muted); margin-top: 6px; }
+.legend { display: flex; gap: 12px; font-size: 12px; color: var(--muted); margin-top: 6px; }
 .legend span::before { content: "\2014 "; }
 .legend .x { color: var(--red); }
 .legend .y { color: var(--green); }
@@ -138,7 +138,7 @@ function drawChart(canvasId, series, colors, unit) {
 
   const allValues = series.flat();
   if (allValues.length === 0) {
-    ctx.fillStyle = "#8bb99b";
+    ctx.fillStyle = "#d8f5df";
     ctx.font = "11px 'Courier New', monospace";
     ctx.fillText("NO DATA", 8, height / 2);
     return;
@@ -182,12 +182,12 @@ async function updateSensors() {
     const accelValues = parseNumbers(data.accelerometer);
     document.getElementById("accel-raw").textContent = data.accelerometer || "--";
     [0, 1, 2].forEach(i => pushHistory(history.accel[i], accelValues[i] ?? (history.accel[i].at(-1) ?? 0)));
-    drawChart("chart-accel", history.accel, ["#ee6b72", "#52d273", "#6ec8f2"]);
+    drawChart("chart-accel", history.accel, ["#ff7b83", "#00ff66", "#78d7ff"]);
 
     const gyroValues = parseNumbers(data.gyroscope);
     document.getElementById("gyro-raw").textContent = data.gyroscope || "--";
     [0, 1, 2].forEach(i => pushHistory(history.gyro[i], gyroValues[i] ?? (history.gyro[i].at(-1) ?? 0)));
-    drawChart("chart-gyro", history.gyro, ["#ee6b72", "#52d273", "#6ec8f2"]);
+    drawChart("chart-gyro", history.gyro, ["#ff7b83", "#00ff66", "#78d7ff"]);
 
     const lightValue = parseNumbers(data.light)[0];
     if (lightValue !== undefined) {
