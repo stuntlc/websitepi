@@ -4,6 +4,7 @@ import http.server
 import socket
 import socketserver
 import subprocess
+import sys
 import threading
 
 UDP_PORT = 9100
@@ -16,7 +17,12 @@ clients = []
 
 def udp_receiver():
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.bind(("0.0.0.0", UDP_PORT))
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    try:
+        sock.bind(("0.0.0.0", UDP_PORT))
+    except OSError as error:
+        print(f"udp bind failed on {UDP_PORT}: {error}", file=sys.stderr, flush=True)
+        raise SystemExit(1)
     while True:
         data, _ = sock.recvfrom(4096)
         with clients_lock:
@@ -73,9 +79,14 @@ class StreamHandler(http.server.BaseHTTPRequestHandler):
 
 class ThreadingHTTPServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
     daemon_threads = True
+    allow_reuse_address = True
 
 
 if __name__ == "__main__":
     threading.Thread(target=udp_receiver, daemon=True).start()
-    with ThreadingHTTPServer(("", HTTP_PORT), StreamHandler) as httpd:
-        httpd.serve_forever()
+    try:
+        with ThreadingHTTPServer(("", HTTP_PORT), StreamHandler) as httpd:
+            httpd.serve_forever()
+    except OSError as error:
+        print(f"http bind failed on {HTTP_PORT}: {error}", file=sys.stderr, flush=True)
+        raise SystemExit(1)

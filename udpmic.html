@@ -50,6 +50,7 @@ audio { width: 100%; display: block; }
       <h2 class="panel-title"><span>RECEIVER CONTROLS</span><span>LIVE</span></h2>
       <div id="install-banner">
         <p>UDP Mic app not detected on the phone.</p>
+        <p><strong>Before installing:</strong> this APK is built for this project and is not intended to be dangerous. APK files from random websites could be unsafe, so only install apps from sources you trust. UDP Mic supports Android 7.0 (API 24) and newer, but it may not work on every Android device because phone permissions and hardware vary.</p>
         <div class="controls">
           <button onclick="installApp()">[ INSTALL VIA ADB ]</button>
           <button onclick="dismissInstallBanner()">[ DISMISS ]</button>
@@ -105,7 +106,7 @@ async function checkAppInstalled() {
 }
 
 async function installApp() {
-  if (!confirm("Install the UDP Mic app on the phone via adb now?")) return;
+  if (!confirm("This project APK is not intended to be dangerous, but APKs from random websites could be unsafe. UDP Mic supports Android 7.0+; compatibility can vary by phone. Install it on the phone via ADB now?")) return;
   try {
     panelStatus.classList.remove("error");
     panelStatus.textContent = "INSTALLING VIA ADB...";
@@ -164,12 +165,18 @@ stream.addEventListener("playing", () => {
   panelStatus.textContent = `LIVE // first audio ${streamTrace.firstByte.toFixed(0)} ms // playing +${browserBuffer.toFixed(0)} ms`;
 });
 
+let receiverBusy = false;
+
 async function startReceiver() {
+  if (receiverBusy) return;
+  receiverBusy = true;
   try {
     panelStatus.classList.remove("error");
     status.classList.remove("error");
+    panelStatus.textContent = "STARTING RECEIVER...";
     const response = await fetch("/cgi-bin/udpmic.cgi?action=start", { cache: "no-store" });
-    if (!response.ok) throw new Error("Could not start receiver.");
+    const text = (await response.text()).trim();
+    if (!response.ok || /^ERROR/i.test(text)) throw new Error(text || "Could not start receiver.");
     panelStatus.textContent = "RECEIVER STARTED. WAITING FOR PHONE...";
     status.textContent = "UDP RECEIVER ONLINE";
 
@@ -183,10 +190,14 @@ async function startReceiver() {
     panelStatus.textContent = error.message;
     panelStatus.classList.add("error");
     status.textContent = "MIC ERROR";
+  } finally {
+    receiverBusy = false;
   }
 }
 
 async function stopReceiver() {
+  if (receiverBusy) return;
+  receiverBusy = true;
   try {
     await fetch("/cgi-bin/udpmic.cgi?action=stop", { cache: "no-store" });
     stream.pause();
@@ -197,6 +208,8 @@ async function stopReceiver() {
   } catch (error) {
     panelStatus.textContent = error.message;
     panelStatus.classList.add("error");
+  } finally {
+    receiverBusy = false;
   }
 }
 
