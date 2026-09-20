@@ -61,10 +61,10 @@ audio { width: 100%; display: block; }
       <div class="target" id="target">HOST : PORT</div>
       <p class="phone-link" id="phone-link">PHONE (rndis0): checking...</p>
       <div class="controls">
-        <button onclick="startReceiver()">[ START RECEIVER ]</button>
-        <button onclick="stopReceiver()">[ STOP ]</button>
+        <button id="start-btn" onclick="startReceiver()">[ START RECEIVER ]</button>
+        <button id="stop-btn" onclick="stopReceiver()">[ STOP ]</button>
         <button onclick="refreshPhoneLink()">[ RESCAN LINK ]</button>
-        <button onclick="forceUnstick()">[ FORCE UNSTICK ]</button>
+        <button id="force-btn" onclick="forceUnstick()">[ FORCE UNSTICK ]</button>
       </div>
       <p class="section-label">APP CONTROL // ADB</p>
       <div class="controls">
@@ -168,10 +168,16 @@ stream.addEventListener("playing", () => {
 });
 
 let receiverBusy = false;
+const receiverButtons = ["start-btn", "stop-btn", "force-btn"].map((id) => document.getElementById(id));
+
+function setReceiverButtonsDisabled(disabled) {
+  receiverButtons.forEach((button) => { button.disabled = disabled; });
+}
 
 async function startReceiver() {
   if (receiverBusy) return;
   receiverBusy = true;
+  setReceiverButtonsDisabled(true);
   try {
     panelStatus.classList.remove("error");
     status.classList.remove("error");
@@ -194,12 +200,14 @@ async function startReceiver() {
     status.textContent = "MIC ERROR";
   } finally {
     receiverBusy = false;
+    setReceiverButtonsDisabled(false);
   }
 }
 
 async function stopReceiver() {
   if (receiverBusy) return;
   receiverBusy = true;
+  setReceiverButtonsDisabled(true);
   try {
     await fetch("/cgi-bin/udpmic.cgi?action=stop", { cache: "no-store" });
     stream.pause();
@@ -212,12 +220,14 @@ async function stopReceiver() {
     panelStatus.classList.add("error");
   } finally {
     receiverBusy = false;
+    setReceiverButtonsDisabled(false);
   }
 }
 
 async function forceUnstick() {
   if (receiverBusy) return;
   receiverBusy = true;
+  setReceiverButtonsDisabled(true);
   try {
     panelStatus.classList.remove("error");
     panelStatus.textContent = "FORCING CLEANUP...";
@@ -233,6 +243,7 @@ async function forceUnstick() {
     panelStatus.classList.add("error");
   } finally {
     receiverBusy = false;
+    setReceiverButtonsDisabled(false);
   }
 }
 

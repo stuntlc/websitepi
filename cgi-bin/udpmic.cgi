@@ -96,6 +96,19 @@ kill_receiver() {
   done
 }
 
+# True when a single udpmic.py already owns both ports, so start can skip the teardown/rebuild.
+receiver_healthy() {
+  local pids
+  pids=$(pgrep -f "$PATTERN")
+  [ -n "$pids" ] || return 1
+  [ "$(echo "$pids" | wc -l)" = "1" ] || return 1
+  port_busy 9100 || return 1
+  port_busy 9101 || return 1
+  [ "$(pids_on_port 9100)" = "$pids" ] || return 1
+  [ "$(pids_on_port 9101)" = "$pids" ] || return 1
+  return 0
+}
+
 if [ "$ACTION" = "debug" ]; then
   debug_snapshot
   exit 0
@@ -119,6 +132,11 @@ if ! flock -w 20 200; then
   echo "ERROR: receiver busy, try again (or use action=force to unstick)"
   debug_snapshot
   exit 1
+fi
+
+if [ "$ACTION" != "stop" ] && receiver_healthy; then
+  echo "UDP mic already listening on 9100/udp, stream on 9101/tcp"
+  exit 0
 fi
 
 kill_receiver
