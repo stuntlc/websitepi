@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sensors | Skunk Works</title>
+<style>
+:root { --ink: #d8f3dc; --muted: #8bb99b; --green: #52d273; --line: #24583a; --panel: rgba(4, 18, 12, .9); --amber: #f2c14e; --red: #ee6b72; --blue: #6ec8f2; }
+* { box-sizing: border-box; }
+body { margin: 0; min-height: 100vh; color: var(--ink); background: #07130d url("skunk-bg.jpg") center / cover fixed; font-family: "Courier New", monospace; }
+body::before { content: ""; position: fixed; inset: 0; background: rgba(1, 10, 6, .78); pointer-events: none; }
+main { position: relative; max-width: 1180px; margin: 0 auto; padding: 28px 20px 44px; }
+header { display: flex; align-items: end; justify-content: space-between; gap: 20px; border-bottom: 1px solid var(--line); padding-bottom: 18px; }
+h1 { margin: 0; color: var(--green); font-size: clamp(22px, 4vw, 36px); letter-spacing: 3px; }
+.subtitle { color: var(--muted); margin: 8px 0 0; font-size: 13px; }
+.actions { display: flex; gap: 8px; }
+button, a { border: 1px solid var(--line); background: #0b2517; color: var(--ink); padding: 9px 13px; font: inherit; text-decoration: none; cursor: pointer; }
+button:hover, a:hover { border-color: var(--green); color: white; }
+.statusbar { display: flex; justify-content: space-between; gap: 16px; color: var(--muted); padding: 14px 0; font-size: 13px; }
+.statusbar.error { color: var(--red); }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px; }
+.panel { background: var(--panel); border: 1px solid var(--line); padding: 16px; box-shadow: 0 0 22px rgba(0,0,0,.45); }
+.panel-title { display: flex; justify-content: space-between; align-items: center; margin: 0 0 14px; color: var(--green); font-size: 14px; letter-spacing: 1px; }
+.readout { display: flex; justify-content: space-between; gap: 10px; font-size: 12px; color: var(--muted); padding: 3px 0; }
+.readout span:last-child { color: var(--ink); overflow-wrap: anywhere; text-align: right; }
+canvas { width: 100%; height: 120px; display: block; margin-top: 8px; background: rgba(1, 12, 7, .55); border: 1px solid var(--line); }
+.legend { display: flex; gap: 12px; font-size: 11px; color: var(--muted); margin-top: 6px; }
+.legend span::before { content: "\2014 "; }
+.legend .x { color: var(--red); }
+.legend .y { color: var(--green); }
+.legend .z { color: var(--blue); }
+.bar-track { height: 14px; border: 1px solid var(--line); background: rgba(1, 12, 7, .55); margin-top: 8px; }
+.bar-fill { height: 100%; background: var(--green); width: 0%; transition: width .3s ease; }
+.indicator { display: inline-block; padding: 4px 10px; font-size: 12px; border: 1px solid var(--line); color: var(--muted); margin-top: 8px; }
+.indicator.on { border-color: var(--green); color: var(--green); }
+@media (max-width: 760px) { main { padding: 18px 12px 30px; } header, .statusbar { align-items: flex-start; flex-direction: column; } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div>
+      <h1>SENSOR DASHBOARD</h1>
+      <p class="subtitle">LIVE PHONE SENSORS // ADB TELEMETRY</p>
+    </div>
+    <div class="actions"><a href="index.html">[ CONTROL ]</a><button id="pause" type="button">[ PAUSE ]</button></div>
+  </header>
+  <div class="statusbar"><span id="status">CONNECTING...</span><span id="updated">--</span></div>
+
+  <div class="grid">
+    <section class="panel">
+      <h2 class="panel-title"><span>ACCELEROMETER</span><span>m/s&sup2;</span></h2>
+      <canvas id="chart-accel" width="600" height="120"></canvas>
+      <div class="legend"><span class="x">X</span><span class="y">Y</span><span class="z">Z</span></div>
+      <div class="readout"><span>raw</span><span id="accel-raw">--</span></div>
+    </section>
+
+    <section class="panel">
+      <h2 class="panel-title"><span>GYROSCOPE</span><span>rad/s</span></h2>
+      <canvas id="chart-gyro" width="600" height="120"></canvas>
+      <div class="legend"><span class="x">X</span><span class="y">Y</span><span class="z">Z</span></div>
+      <div class="readout"><span>raw</span><span id="gyro-raw">--</span></div>
+    </section>
+
+    <section class="panel">
+      <h2 class="panel-title"><span>LIGHT</span><span id="light-val">-- lx</span></h2>
+      <canvas id="chart-light" width="600" height="120"></canvas>
+    </section>
+
+    <section class="panel">
+      <h2 class="panel-title"><span>PROXIMITY</span><span>DISTANCE</span></h2>
+      <div class="readout"><span>raw</span><span id="prox-raw">--</span></div>
+      <span class="indicator" id="prox-indicator">UNKNOWN</span>
+    </section>
+
+    <section class="panel">
+      <h2 class="panel-title"><span>ORIENTATION</span><span>&deg;</span></h2>
+      <div class="readout"><span>azimuth</span><span id="orient-azimuth">--</span></div>
+      <div class="readout"><span>pitch</span><span id="orient-pitch">--</span></div>
+      <div class="readout"><span>roll</span><span id="orient-roll">--</span></div>
+    </section>
+
+    <section class="panel">
+      <h2 class="panel-title"><span>BATTERY</span><span id="battery-val">--%</span></h2>
+      <div class="bar-track"><div class="bar-fill" id="battery-bar"></div></div>
+    </section>
+
+    <section class="panel">
+      <h2 class="panel-title"><span>THERMAL</span><span id="thermal-val">-- &deg;C</span></h2>
+      <canvas id="chart-thermal" width="600" height="120"></canvas>
+    </section>
+
+    <section class="panel">
+      <h2 class="panel-title"><span>WI-FI RSSI</span><span id="wifi-val">-- dBm</span></h2>
+      <canvas id="chart-wifi" width="600" height="120"></canvas>
+    </section>
+
+    <section class="panel">
+      <h2 class="panel-title"><span>BLUETOOTH</span><span>STATE</span></h2>
+      <span class="indicator" id="bt-indicator">UNKNOWN</span>
+    </section>
+  </div>
+</main>
+<script>
+const statusEl = document.getElementById("status");
+const updatedEl = document.getElementById("updated");
+const pauseBtn = document.getElementById("pause");
+
+const HISTORY_LEN = 60;
+const history = {
+  accel: [[], [], []],
+  gyro: [[], [], []],
+  light: [],
+  thermal: [],
+  wifi: [],
+};
+
+let paused = false;
+let timer = null;
+
+function parseNumbers(raw) {
+  if (!raw) return [];
+  const match = raw.match(/-?\d+(\.\d+)?/g);
+  return match ? match.map(Number) : [];
+}
+
+function pushHistory(arr, value) {
+  arr.push(value);
+  if (arr.length > HISTORY_LEN) arr.shift();
+}
+
+function drawChart(canvasId, series, colors, unit) {
+  const canvas = document.getElementById(canvasId);
+  const ctx = canvas.getContext("2d");
+  const width = canvas.width;
+  const height = canvas.height;
+  ctx.clearRect(0, 0, width, height);
+
+  const allValues = series.flat();
+  if (allValues.length === 0) return;
+  let min = Math.min(...allValues);
+  let max = Math.max(...allValues);
+  if (min === max) { min -= 1; max += 1; }
+  const pad = (max - min) * 0.1;
+  min -= pad;
+  max += pad;
+
+  series.forEach((points, seriesIndex) => {
+    if (points.length < 2) return;
+    ctx.strokeStyle = colors[seriesIndex];
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    points.forEach((value, index) => {
+      const x = (index / (HISTORY_LEN - 1)) * width;
+      const y = height - ((value - min) / (max - min)) * height;
+      if (index === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+  });
+}
+
+function setIndicator(el, isOn, onText, offText) {
+  el.textContent = isOn ? onText : offText;
+  el.classList.toggle("on", isOn);
+}
+
+async function updateSensors() {
+  try {
+    const response = await fetch("/cgi-bin/sensors.cgi?t=" + Date.now(), { cache: "no-store" });
+    const data = await response.json();
+    if (!response.ok || !data.ok) throw new Error(data.error || "sensor read failed");
+
+    statusEl.textContent = "LIVE";
+    statusEl.classList.remove("error");
+    updatedEl.textContent = new Date(data.timestamp * 1000).toLocaleTimeString();
+
+    const accelValues = parseNumbers(data.accelerometer);
+    document.getElementById("accel-raw").textContent = data.accelerometer || "--";
+    [0, 1, 2].forEach(i => pushHistory(history.accel[i], accelValues[i] ?? (history.accel[i].at(-1) ?? 0)));
+    drawChart("chart-accel", history.accel, ["#ee6b72", "#52d273", "#6ec8f2"]);
+
+    const gyroValues = parseNumbers(data.gyroscope);
+    document.getElementById("gyro-raw").textContent = data.gyroscope || "--";
+    [0, 1, 2].forEach(i => pushHistory(history.gyro[i], gyroValues[i] ?? (history.gyro[i].at(-1) ?? 0)));
+    drawChart("chart-gyro", history.gyro, ["#ee6b72", "#52d273", "#6ec8f2"]);
+
+    const lightValue = parseNumbers(data.light)[0];
+    if (lightValue !== undefined) {
+      document.getElementById("light-val").textContent = lightValue + " lx";
+      pushHistory(history.light, lightValue);
+    }
+    drawChart("chart-light", [history.light], ["#f2c14e"]);
+
+    document.getElementById("prox-raw").textContent = data.proximity || "--";
+    const proxValue = parseNumbers(data.proximity)[0];
+    setIndicator(document.getElementById("prox-indicator"), proxValue === 0, "NEAR", "FAR");
+
+    const orientValues = parseNumbers(data.orientation);
+    document.getElementById("orient-azimuth").textContent = orientValues[0] ?? "--";
+    document.getElementById("orient-pitch").textContent = orientValues[1] ?? "--";
+    document.getElementById("orient-roll").textContent = orientValues[2] ?? "--";
+
+    if (data.battery) {
+      document.getElementById("battery-val").textContent = data.battery + "%";
+      document.getElementById("battery-bar").style.width = data.battery + "%";
+    }
+
+    if (data.thermal) {
+      const celsius = (Number(data.thermal) / 1000).toFixed(1);
+      document.getElementById("thermal-val").textContent = celsius + " \u00b0C";
+      pushHistory(history.thermal, Number(celsius));
+    }
+    drawChart("chart-thermal", [history.thermal], ["#ee6b72"]);
+
+    if (data.wifi_rssi) {
+      document.getElementById("wifi-val").textContent = data.wifi_rssi + " dBm";
+      pushHistory(history.wifi, Number(data.wifi_rssi));
+    }
+    drawChart("chart-wifi", [history.wifi], ["#6ec8f2"]);
+
+    setIndicator(document.getElementById("bt-indicator"), data.bluetooth_enabled === "true", "ON", "OFF");
+  } catch (error) {
+    statusEl.textContent = "ERROR: " + error.message;
+    statusEl.classList.add("error");
+  }
+}
+
+pauseBtn.addEventListener("click", () => {
+  paused = !paused;
+  pauseBtn.textContent = paused ? "[ RESUME ]" : "[ PAUSE ]";
+  if (paused) {
+    clearInterval(timer);
+  } else {
+    timer = setInterval(updateSensors, 1000);
+  }
+});
+
+updateSensors();
+timer = setInterval(updateSensors, 1000);
+</script>
+</body>
+</html>
