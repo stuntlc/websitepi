@@ -136,7 +136,7 @@ async function refreshPhoneLink() {
     const data = await response.json();
     const rndis = (((data.phone || {}).interfaces || {}).rndis0) || {};
     const usb0 = data.usb0 || {};
-    resolvedHost = usb0.ip || location.hostname;
+    resolvedHost = (usb0.ip || location.hostname).split("/")[0];
     target.textContent = resolvedHost + " : " + UDP_PORT;
     if (rndis.ip) {
       phoneLink.textContent = `PHONE (rndis0): ${rndis.ip} // ${rndis.mac || "MAC unknown"}`;
