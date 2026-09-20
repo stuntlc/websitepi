@@ -75,7 +75,7 @@ audio { width: 100%; display: block; }
     </section>
     <section class="panel">
       <h2 class="panel-title"><span>STREAM OUTPUT</span><span>MONITOR</span></h2>
-      <audio id="stream" controls></audio>
+      <audio id="stream" controls playsinline></audio>
     </section>
   </div>
 </main>
@@ -155,16 +155,27 @@ async function refreshPhoneLink() {
 refreshPhoneLink();
 checkAppInstalled();
 
+stream.volume = 1;
+stream.muted = false;
+
 stream.addEventListener("error", () => {
   panelStatus.textContent = "Audio stream could not be played.";
   panelStatus.classList.add("error");
+});
+
+stream.addEventListener("volumechange", () => {
+  if (stream.muted || stream.volume === 0) {
+    panelStatus.textContent = "AUDIO IS MUTED OR VOLUME IS 0 -- CHECK PHONE MEDIA VOLUME.";
+    panelStatus.classList.add("error");
+  }
 });
 
 let streamTrace = null;
 stream.addEventListener("playing", () => {
   if (!streamTrace) return;
   const browserBuffer = performance.now() - streamTrace.firstByte;
-  panelStatus.textContent = `LIVE // first audio ${streamTrace.firstByte.toFixed(0)} ms // playing +${browserBuffer.toFixed(0)} ms`;
+  const audioState = `muted=${stream.muted} volume=${stream.volume}`;
+  panelStatus.textContent = `LIVE // first audio ${streamTrace.firstByte.toFixed(0)} ms // playing +${browserBuffer.toFixed(0)} ms // ${audioState}`;
 });
 
 let receiverBusy = false;
@@ -192,8 +203,15 @@ async function startReceiver() {
     const url = "http://" + location.hostname + ":" + STREAM_PORT + "/?t=" + Date.now();
     streamTrace = { firstByte: requestStarted };
     stream.src = url;
+    stream.volume = 1;
+    stream.muted = false;
     stream.load();
-    await stream.play().catch(() => {});
+    try {
+      await stream.play();
+    } catch (playError) {
+      panelStatus.textContent = "PLAYBACK BLOCKED: " + playError.message + " -- TAP [ START RECEIVER ] AGAIN OR CHECK PHONE MEDIA VOLUME.";
+      panelStatus.classList.add("error");
+    }
   } catch (error) {
     panelStatus.textContent = error.message;
     panelStatus.classList.add("error");
