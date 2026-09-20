@@ -46,11 +46,14 @@ class StreamHandler(http.server.BaseHTTPRequestHandler):
         self.end_headers()
 
         # Each listener gets its own ffmpeg encoder fed the same raw PCM fan-out.
+        # Output is resampled to 44.1kHz so the MP3 is standard MPEG-1 Layer III;
+        # encoding directly at 16kHz needs MPEG-2 LSF, which some Android decoders
+        # accept but play back silently.
         proc = subprocess.Popen(
             [
                 "ffmpeg", "-hide_banner", "-loglevel", "error",
                 "-fflags", "nobuffer", "-f", "s16le", "-ar", str(SAMPLE_RATE), "-ac", "1", "-i", "-",
-                "-c:a", "libmp3lame", "-b:a", "64k", "-write_xing", "0", "-flush_packets", "1",
+                "-ar", "44100", "-c:a", "libmp3lame", "-b:a", "64k", "-write_xing", "0", "-flush_packets", "1",
                 "-f", "mp3", "-",
             ],
             stdin=subprocess.PIPE,
