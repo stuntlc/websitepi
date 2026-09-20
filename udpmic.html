@@ -42,7 +42,7 @@ audio { width: 100%; display: block; }
       <h1>UDP MIC</h1>
       <p class="subtitle">PHONE MIC // RAW PCM OVER UDP</p>
     </div>
-    <div class="actions"><a href="index.html">[ CONTROL ]</a></div>
+    <div class="actions"><a href="index.html" id="control-link">[ CONTROL ]</a></div>
   </header>
   <div class="statusbar"><span id="status">READY</span><span id="host-label"></span></div>
   <div class="layout">
@@ -199,6 +199,22 @@ async function stopReceiver() {
     panelStatus.classList.add("error");
   }
 }
+
+function stopAll() {
+  return Promise.all([
+    fetch("/cgi-bin/udpmic.cgi?action=stop", { cache: "no-store", keepalive: true }).catch(() => {}),
+    fetch("/cgi-bin/udpmic-adb.cgi?action=stop", { cache: "no-store", keepalive: true }).catch(() => {}),
+  ]);
+}
+
+document.getElementById("control-link").addEventListener("click", (event) => {
+  event.preventDefault();
+  panelStatus.classList.remove("error");
+  panelStatus.textContent = "STOPPING RECEIVER AND APP...";
+  stopAll().finally(() => { window.location.href = "index.html"; });
+});
+
+window.addEventListener("pagehide", stopAll);
 
 async function adbControl(action) {
   try {
