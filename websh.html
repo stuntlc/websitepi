@@ -5,21 +5,21 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>WebShell | Skunk Works</title>
 <style>
-:root { --ink: #ffffff; --muted: #d8f5df; --green: #00ff66; --line: #00a83f; --panel: rgba(0,0,0,.94); --red: #ff7b83; }
+:root { --ink: #ffffff; --muted: #ffffff; --green: #00ff66; --line: #00a83f; --panel: rgba(0,0,0,.94); --red: #ff7b83; }
 * { box-sizing: border-box; }
 body { margin: 0; min-height: 100vh; color: var(--ink); background: #000; font-family: "Courier New", monospace; font-size: 14px; line-height: 1.45; font-weight: 600; }
 body::before { content: ""; position: fixed; inset: 0; background: rgba(1,10,6,.78); pointer-events: none; }
 main { position: relative; max-width: 1400px; margin: 0 auto; padding: 28px 20px 44px; }
 header { display: flex; align-items: end; justify-content: space-between; gap: 20px; border-bottom: 1px solid var(--line); padding-bottom: 18px; }
 h1 { margin: 0; color: var(--green); font-size: clamp(22px, 4vw, 36px); letter-spacing: 3px; }
-.subtitle { color: var(--muted); margin: 8px 0 0; font-size: 13px; }
+.subtitle { color: var(--muted); margin: 8px 0 0; font-size: 14px; }
 a, button { border: 1px solid var(--line); background: #0b2517; color: var(--ink); padding: 9px 13px; font: inherit; text-decoration: none; cursor: pointer; }
 a:hover, button:hover { border-color: var(--green); color: white; }
-.statusbar { display: flex; justify-content: space-between; color: var(--muted); padding: 14px 0; font-size: 13px; }
+.statusbar { display: flex; justify-content: space-between; color: var(--muted); padding: 14px 0; font-size: 14px; }
 .shells { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
 .panel { background: var(--panel); border: 1px solid var(--line); padding: 14px; box-shadow: 0 0 22px rgba(0,0,0,.45); min-width: 0; }
 .panel-title { display: flex; justify-content: space-between; gap: 8px; margin: 0 0 12px; color: var(--green); font-size: 14px; }
-.endpoint { color: var(--muted); font-size: 12px; font-weight: 600; text-align: right; overflow-wrap: anywhere; }
+.endpoint { color: var(--muted); font-size: 14px; font-weight: 600; text-align: right; overflow-wrap: anywhere; }
 .output { height: 410px; overflow: auto; margin: 0 0 10px; padding: 10px; border: 1px solid var(--line); background: rgba(1,12,7,.75); color: var(--ink); white-space: pre-wrap; overflow-wrap: anywhere; }
 .login { max-width: 460px; margin: 50px auto 0; }
 .login form { display: flex; gap: 8px; }

@@ -5,33 +5,33 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Sensors | Skunk Works</title>
 <style>
-:root { --ink: #ffffff; --muted: #d8f5df; --green: #00ff66; --line: #00a83f; --panel: rgba(0, 0, 0, .94); --amber: #ffe066; --red: #ff7b83; --blue: #78d7ff; }
+:root { --ink: #ffffff; --muted: #ffffff; --green: #00ff66; --line: #00a83f; --panel: rgba(0, 0, 0, .94); --amber: #ffe066; --red: #ff7b83; --blue: #78d7ff; }
 * { box-sizing: border-box; }
 body { margin: 0; min-height: 100vh; color: var(--ink); background: #000; font-family: "Courier New", monospace; font-size: 14px; line-height: 1.45; font-weight: 600; }
 body::before { content: ""; position: fixed; inset: 0; background: rgba(1, 10, 6, .78); pointer-events: none; }
 main { position: relative; max-width: 1180px; margin: 0 auto; padding: 28px 20px 44px; }
 header { display: flex; align-items: end; justify-content: space-between; gap: 20px; border-bottom: 1px solid var(--line); padding-bottom: 18px; }
 h1 { margin: 0; color: var(--green); font-size: clamp(22px, 4vw, 36px); letter-spacing: 3px; }
-.subtitle { color: var(--muted); margin: 8px 0 0; font-size: 13px; }
+.subtitle { color: var(--muted); margin: 8px 0 0; font-size: 14px; }
 .actions { display: flex; gap: 8px; }
 button, a { border: 1px solid var(--line); background: #0b2517; color: var(--ink); padding: 9px 13px; font: inherit; text-decoration: none; cursor: pointer; }
 button:hover, a:hover { border-color: var(--green); color: white; }
-.statusbar { display: flex; justify-content: space-between; gap: 16px; color: var(--muted); padding: 14px 0; font-size: 13px; }
+.statusbar { display: flex; justify-content: space-between; gap: 16px; color: var(--muted); padding: 14px 0; font-size: 14px; }
 .statusbar.error { color: var(--red); }
 .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px; }
 .panel { background: var(--panel); border: 1px solid var(--line); padding: 16px; box-shadow: 0 0 22px rgba(0,0,0,.45); }
 .panel-title { display: flex; justify-content: space-between; align-items: center; margin: 0 0 14px; color: var(--green); font-size: 14px; letter-spacing: 1px; }
-.readout { display: flex; justify-content: space-between; gap: 10px; font-size: 12px; color: var(--muted); padding: 3px 0; }
+.readout { display: flex; justify-content: space-between; gap: 10px; font-size: 14px; color: var(--muted); padding: 3px 0; }
 .readout span:last-child { color: var(--ink); overflow-wrap: anywhere; text-align: right; }
 canvas { width: 100%; height: 120px; display: block; margin-top: 8px; background: rgba(1, 12, 7, .55); border: 1px solid var(--line); }
-.legend { display: flex; gap: 12px; font-size: 12px; color: var(--muted); margin-top: 6px; }
+.legend { display: flex; gap: 12px; font-size: 14px; color: var(--muted); margin-top: 6px; }
 .legend span::before { content: "\2014 "; }
 .legend .x { color: var(--red); }
 .legend .y { color: var(--green); }
 .legend .z { color: var(--blue); }
 .bar-track { height: 14px; border: 1px solid var(--line); background: rgba(1, 12, 7, .55); margin-top: 8px; }
 .bar-fill { height: 100%; background: var(--green); width: 0%; transition: width .3s ease; }
-.indicator { display: inline-block; padding: 4px 10px; font-size: 12px; border: 1px solid var(--line); color: var(--muted); margin-top: 8px; }
+.indicator { display: inline-block; padding: 4px 10px; font-size: 14px; border: 1px solid var(--line); color: var(--muted); margin-top: 8px; }
 .indicator.on { border-color: var(--green); color: var(--green); }
 @media (max-width: 760px) { main { padding: 18px 12px 30px; } header, .statusbar { align-items: flex-start; flex-direction: column; } }
 </style>

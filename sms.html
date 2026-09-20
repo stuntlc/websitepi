@@ -5,31 +5,31 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SMS Console | Skunk Works</title>
 <style>
-:root { --ink: #ffffff; --muted: #d8f5df; --green: #00ff66; --line: #00a83f; --panel: rgba(0, 0, 0, .94); --amber: #ffe066; --red: #ff7b83; }
+:root { --ink: #ffffff; --muted: #ffffff; --green: #00ff66; --line: #00a83f; --panel: rgba(0, 0, 0, .94); --amber: #ffe066; --red: #ff7b83; }
 * { box-sizing: border-box; }
 body { margin: 0; min-height: 100vh; color: var(--ink); background: #000; font-family: "Courier New", monospace; font-size: 14px; line-height: 1.45; font-weight: 600; }
 body::before { content: ""; position: fixed; inset: 0; background: rgba(1, 10, 6, .78); pointer-events: none; }
 main { position: relative; max-width: 1180px; margin: 0 auto; padding: 28px 20px 44px; }
 header { display: flex; align-items: end; justify-content: space-between; gap: 20px; border-bottom: 1px solid var(--line); padding-bottom: 18px; }
 h1 { margin: 0; color: var(--green); font-size: clamp(22px, 4vw, 36px); letter-spacing: 3px; }
-.subtitle { color: var(--muted); margin: 8px 0 0; font-size: 13px; }
+.subtitle { color: var(--muted); margin: 8px 0 0; font-size: 14px; }
 .actions, .form-actions { display: flex; gap: 8px; }
 button, a { border: 1px solid var(--line); background: #0b2517; color: var(--ink); padding: 9px 13px; font: inherit; text-decoration: none; cursor: pointer; }
 button:hover, a:hover { border-color: var(--green); color: white; }
-.statusbar { display: flex; justify-content: space-between; gap: 16px; color: var(--muted); padding: 14px 0; font-size: 13px; }
+.statusbar { display: flex; justify-content: space-between; gap: 16px; color: var(--muted); padding: 14px 0; font-size: 14px; }
 .layout { display: grid; grid-template-columns: 360px minmax(0, 1fr); gap: 18px; }
 .panel { background: var(--panel); border: 1px solid var(--line); padding: 16px; box-shadow: 0 0 22px rgba(0,0,0,.45); }
 .panel-title { display: flex; justify-content: space-between; align-items: center; margin: 0 0 14px; color: var(--green); font-size: 14px; letter-spacing: 1px; }
-label { display: block; color: var(--muted); font-size: 12px; margin: 14px 0 6px; }
+label { display: block; color: var(--muted); font-size: 14px; margin: 14px 0 6px; }
 input, textarea { width: 100%; border: 1px solid var(--line); background: rgba(1, 12, 7, .8); color: white; padding: 10px; font: inherit; }
 textarea { min-height: 150px; resize: vertical; }
 input:focus, textarea:focus { outline: 1px solid var(--green); border-color: var(--green); }
 .form-actions { align-items: center; margin-top: 14px; }
 .send { border-color: var(--green); color: white; }
-#send-status { color: var(--muted); font-size: 12px; }
+#send-status { color: var(--muted); font-size: 14px; }
 #send-status.error { color: var(--red); }
 .log { min-height: 230px; max-height: 48vh; overflow: auto; margin: 0; padding: 12px; border: 1px solid var(--line); background: rgba(1, 12, 7, .55); color: var(--ink); white-space: pre-wrap; overflow-wrap: anywhere; }
-.section-label { margin: 18px 0 9px; color: var(--green); font-size: 13px; letter-spacing: 1px; }
+.section-label { margin: 18px 0 9px; color: var(--green); font-size: 14px; letter-spacing: 1px; }
 @media (max-width: 760px) { main { padding: 18px 12px 30px; } header, .statusbar { align-items: flex-start; flex-direction: column; } .layout { grid-template-columns: 1fr; } .actions { width: 100%; } }
 </style>
 </head>
