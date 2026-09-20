@@ -29,6 +29,11 @@ def run_adb(args, timeout=10):
 
 def value_after(text, label, lookahead=5):
     lines = text.splitlines()
+    # "Recent Sensor events" lines carry both the label and the value on one line;
+    # the last such line is the freshest reading, so prefer that over the sensor list header.
+    combined = [line.strip() for line in lines if label in line.lower() and "value" in line.lower()]
+    if combined:
+        return combined[-1]
     for index, line in enumerate(lines):
         if label in line.lower():
             for candidate in lines[index:index + lookahead]:
