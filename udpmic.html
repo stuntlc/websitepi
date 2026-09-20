@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UDP Mic | Skunk Works</title>
+<style>
+:root { --ink: #d8f3dc; --muted: #8bb99b; --green: #52d273; --line: #24583a; --panel: rgba(4, 18, 12, .9); --amber: #f2c14e; --red: #ee6b72; }
+* { box-sizing: border-box; }
+body { margin: 0; min-height: 100vh; color: var(--ink); background: #07130d url("skunk-bg.jpg") center / cover fixed; font-family: "Courier New", monospace; }
+body::before { content: ""; position: fixed; inset: 0; background: rgba(1, 10, 6, .78); pointer-events: none; }
+main { position: relative; max-width: 1180px; margin: 0 auto; padding: 28px 20px 44px; }
+header { display: flex; align-items: end; justify-content: space-between; gap: 20px; border-bottom: 1px solid var(--line); padding-bottom: 18px; }
+h1 { margin: 0; color: var(--green); font-size: clamp(22px, 4vw, 36px); letter-spacing: 3px; }
+.subtitle { color: var(--muted); margin: 8px 0 0; font-size: 13px; }
+.actions { display: flex; gap: 8px; }
+button, a { border: 1px solid var(--line); background: #0b2517; color: var(--ink); padding: 9px 13px; font: inherit; text-decoration: none; cursor: pointer; }
+button:hover, a:hover { border-color: var(--green); color: white; }
+.statusbar { display: flex; justify-content: space-between; gap: 16px; color: var(--muted); padding: 14px 0; font-size: 13px; }
+.layout { display: grid; grid-template-columns: 360px minmax(0, 1fr); gap: 18px; }
+.panel { background: var(--panel); border: 1px solid var(--line); padding: 16px; box-shadow: 0 0 22px rgba(0,0,0,.45); }
+.panel-title { display: flex; justify-content: space-between; align-items: center; margin: 0 0 14px; color: var(--green); font-size: 14px; letter-spacing: 1px; }
+.section-label { margin: 18px 0 9px; color: var(--green); font-size: 13px; letter-spacing: 1px; }
+.controls { display: flex; flex-wrap: wrap; gap: 10px; margin: 14px 0 0; }
+#status { min-height: 24px; margin: 0; color: var(--muted); }
+#panel-status { min-height: 24px; margin: 14px 0 0; color: var(--muted); }
+#panel-status.error, #status.error { color: var(--red); }
+audio { width: 100%; display: block; }
+.target { background: rgba(1, 12, 7, .55); border: 1px solid var(--line); padding: 10px; margin: 10px 0; font-size: 14px; letter-spacing: 1px; color: var(--amber); }
+.phone-link { font-size: 12px; color: var(--muted); margin: 0 0 14px; }
+.phone-link.linked { color: var(--green); }
+#install-banner { display: none; background: rgba(46, 30, 4, .7); border: 1px solid var(--amber); padding: 12px; margin: 0 0 14px; font-size: 13px; }
+#install-banner.visible { display: block; }
+#install-banner p { margin: 0 0 10px; }
+@media (max-width: 760px) { main { padding: 18px 12px 30px; } header, .statusbar { align-items: flex-start; flex-direction: column; } .layout { grid-template-columns: 1fr; } .actions { width: 100%; } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div>
+      <h1>UDP MIC</h1>
+      <p class="subtitle">PHONE MIC // RAW PCM OVER UDP</p>
+    </div>
+    <div class="actions"><a href="index.html">[ CONTROL ]</a></div>
+  </header>
+  <div class="statusbar"><span id="status">READY</span><span id="host-label"></span></div>
+  <div class="layout">
+    <section class="panel">
+      <h2 class="panel-title"><span>RECEIVER CONTROLS</span><span>LIVE</span></h2>
+      <div id="install-banner">
+        <p>UDP Mic app not detected on the phone.</p>
+        <div class="controls">
+          <button onclick="installApp()">[ INSTALL VIA ADB ]</button>
+          <button onclick="dismissInstallBanner()">[ DISMISS ]</button>
+        </div>
+      </div>
+      <p class="section-label">POINT THE PHONE APP AT</p>
+      <div class="target" id="target">HOST : PORT</div>
+      <p class="phone-link" id="phone-link">PHONE (rndis0): checking...</p>
+      <div class="controls">
+        <button onclick="startReceiver()">[ START RECEIVER ]</button>
+        <button onclick="stopReceiver()">[ STOP ]</button>
+        <button onclick="refreshPhoneLink()">[ RESCAN LINK ]</button>
+      </div>
+      <p class="section-label">APP CONTROL // ADB</p>
+      <div class="controls">
+        <button onclick="adbControl('start')">[ ADB START APP ]</button>
+        <button onclick="adbControl('stop')">[ ADB STOP APP ]</button>
+      </div>
+      <p id="panel-status" aria-live="polite"></p>
+    </section>
+    <section class="panel">
+      <h2 class="panel-title"><span>STREAM OUTPUT</span><span>MONITOR</span></h2>
+      <audio id="stream" controls></audio>
+    </section>
+  </div>
+</main>
+<script>
+const status = document.getElementById("status");
+const panelStatus = document.getElementById("panel-status");
+const stream = document.getElementById("stream");
+const target = document.getElementById("target");
+const hostLabel = document.getElementById("host-label");
+const phoneLink = document.getElementById("phone-link");
+const installBanner = document.getElementById("install-banner");
+
+const UDP_PORT = 9100;
+const STREAM_PORT = 9101;
+let resolvedHost = location.hostname;
+
+target.textContent = resolvedHost + " : " + UDP_PORT;
+hostLabel.textContent = "PI: " + location.hostname;
+
+async function checkAppInstalled() {
+  try {
+    const response = await fetch("/cgi-bin/udpmic-adb.cgi?action=status&t=" + Date.now(), { cache: "no-store" });
+    const data = await response.json();
+    if (!response.ok || !data.ok) throw new Error(data.error || "Could not check app status.");
+    installBanner.classList.toggle("visible", !data.installed);
+  } catch (error) {
+    panelStatus.textContent = error.message;
+    panelStatus.classList.add("error");
+  }
+}
+
+async function installApp() {
+  if (!confirm("Install the UDP Mic app on the phone via adb now?")) return;
+  try {
+    panelStatus.classList.remove("error");
+    panelStatus.textContent = "INSTALLING VIA ADB...";
+    const install = await fetch("/cgi-bin/udpmic-adb.cgi?action=install", { cache: "no-store" });
+    const installData = await install.json();
+    if (!install.ok || !installData.ok) throw new Error(installData.error || "Install failed.");
+    const launch = await fetch("/cgi-bin/udpmic-adb.cgi?action=launch", { cache: "no-store" });
+    const launchData = await launch.json();
+    if (!launch.ok || !launchData.ok) throw new Error(launchData.error || "Launch failed.");
+    installBanner.classList.remove("visible");
+    panelStatus.textContent = "APP INSTALLED AND LAUNCHED. ALLOW PERMISSIONS ON THE PHONE.";
+  } catch (error) {
+    panelStatus.textContent = error.message;
+    panelStatus.classList.add("error");
+  }
+}
+
+function dismissInstallBanner() {
+  installBanner.classList.remove("visible");
+}
+
+async function refreshPhoneLink() {
+  phoneLink.classList.remove("linked");
+  phoneLink.textContent = "PHONE (rndis0): checking...";
+  try {
+    const response = await fetch("/cgi-bin/oui.cgi?t=" + Date.now(), { cache: "no-store" });
+    if (!response.ok) throw new Error("HTTP " + response.status);
+    const data = await response.json();
+    const rndis = (((data.phone || {}).interfaces || {}).rndis0) || {};
+    const usb0 = data.usb0 || {};
+    resolvedHost = usb0.ip || location.hostname;
+    target.textContent = resolvedHost + " : " + UDP_PORT;
+    if (rndis.ip) {
+      phoneLink.textContent = `PHONE (rndis0): ${rndis.ip} // ${rndis.mac || "MAC unknown"}`;
+      phoneLink.classList.add("linked");
+    } else {
+      phoneLink.textContent = "PHONE (rndis0): not detected";
+    }
+  } catch (error) {
+    phoneLink.textContent = "PHONE (rndis0): lookup failed";
+  }
+}
+
+refreshPhoneLink();
+checkAppInstalled();
+
+stream.addEventListener("error", () => {
+  panelStatus.textContent = "Audio stream could not be played.";
+  panelStatus.classList.add("error");
+});
+
+let streamTrace = null;
+stream.addEventListener("playing", () => {
+  if (!streamTrace) return;
+  const browserBuffer = performance.now() - streamTrace.firstByte;
+  panelStatus.textContent = `LIVE // first audio ${streamTrace.firstByte.toFixed(0)} ms // playing +${browserBuffer.toFixed(0)} ms`;
+});
+
+async function startReceiver() {
+  try {
+    panelStatus.classList.remove("error");
+    status.classList.remove("error");
+    const response = await fetch("/cgi-bin/udpmic.cgi?action=start", { cache: "no-store" });
+    if (!response.ok) throw new Error("Could not start receiver.");
+    panelStatus.textContent = "RECEIVER STARTED. WAITING FOR PHONE...";
+    status.textContent = "UDP RECEIVER ONLINE";
+
+    const requestStarted = performance.now();
+    const url = "http://" + location.hostname + ":" + STREAM_PORT + "/?t=" + Date.now();
+    streamTrace = { firstByte: requestStarted };
+    stream.src = url;
+    stream.load();
+    await stream.play().catch(() => {});
+  } catch (error) {
+    panelStatus.textContent = error.message;
+    panelStatus.classList.add("error");
+    status.textContent = "MIC ERROR";
+  }
+}
+
+async function stopReceiver() {
+  try {
+    await fetch("/cgi-bin/udpmic.cgi?action=stop", { cache: "no-store" });
+    stream.pause();
+    stream.removeAttribute("src");
+    stream.load();
+    panelStatus.textContent = "RECEIVER STOPPED.";
+    status.textContent = "READY";
+  } catch (error) {
+    panelStatus.textContent = error.message;
+    panelStatus.classList.add("error");
+  }
+}
+
+async function adbControl(action) {
+  try {
+    panelStatus.classList.remove("error");
+    const params = new URLSearchParams({ action, host: resolvedHost, port: String(UDP_PORT) });
+    const response = await fetch("/cgi-bin/udpmic-adb.cgi?" + params.toString(), { cache: "no-store" });
+    const data = await response.json();
+    if (!response.ok || !data.ok) throw new Error(data.error || "ADB command failed.");
+    panelStatus.textContent = data.message;
+  } catch (error) {
+    panelStatus.textContent = error.message;
+    panelStatus.classList.add("error");
+  }
+}
+</script>
+</body>
+</html>

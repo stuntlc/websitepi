@@ -4,3 +4,11 @@
 202*.jpeg
 latest.txt
 piscripts/phone-*.jpg
+
+# Android Studio project artifacts (keep sources + android/UdpMic.apk only)
+android/UdpMic/build/
+android/UdpMic/app/build/
+android/UdpMic/.gradle/
+android/UdpMic/.idea/
+android/UdpMic/local.properties
+
