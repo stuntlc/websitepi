@@ -49,6 +49,11 @@ canvas { width: 100%; height: 120px; display: block; margin-top: 8px; background
 
   <div class="grid">
     <section class="panel">
+      <h2 class="panel-title"><span>THERMAL</span><span id="thermal-val">-- &deg;C</span></h2>
+      <canvas id="chart-thermal" width="600" height="120"></canvas>
+    </section>
+
+    <section class="panel">
       <h2 class="panel-title"><span>ACCELEROMETER</span><span>m/s&sup2;</span></h2>
       <canvas id="chart-accel" width="600" height="120"></canvas>
       <div class="legend"><span class="x">X</span><span class="y">Y</span><span class="z">Z</span></div>
@@ -83,11 +88,6 @@ canvas { width: 100%; height: 120px; display: block; margin-top: 8px; background
     <section class="panel">
       <h2 class="panel-title"><span>BATTERY</span><span id="battery-val">--%</span></h2>
       <div class="bar-track"><div class="bar-fill" id="battery-bar"></div></div>
-    </section>
-
-    <section class="panel">
-      <h2 class="panel-title"><span>THERMAL</span><span id="thermal-val">-- &deg;C</span></h2>
-      <canvas id="chart-thermal" width="600" height="120"></canvas>
     </section>
 
     <section class="panel">
@@ -137,7 +137,12 @@ function drawChart(canvasId, series, colors, unit) {
   ctx.clearRect(0, 0, width, height);
 
   const allValues = series.flat();
-  if (allValues.length === 0) return;
+  if (allValues.length === 0) {
+    ctx.fillStyle = "#8bb99b";
+    ctx.font = "11px 'Courier New', monospace";
+    ctx.fillText("NO DATA", 8, height / 2);
+    return;
+  }
   let min = Math.min(...allValues);
   let max = Math.max(...allValues);
   if (min === max) { min -= 1; max += 1; }
