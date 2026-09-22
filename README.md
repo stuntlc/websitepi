@@ -8,7 +8,8 @@ its also connected via adb to a android phone redmi 9a with lineageos20 and can 
 
 
 #portability and so on 
-the whole package is run on a diy made battery pack with 8 cells and a small bms that acts as a ups .. and can be carried in a backpack and provide noc on the go and lights and so on for about 4 hours.  it can be put on a wall charger 17v 3a , it then charges until full and then runs off battery again so its not constantly pulling power from the wall , more tests need to be run on the exact hours and power draw 
+
+The whole package is run on a diy made battery pack with 8 cells and a small bms that acts as a ups .. and can be carried in a backpack and provide noc on the go and lights and so on for about 4 hours.  it can be put on a wall charger 17v 3a , it then charges until full and then runs off battery again so its not constantly pulling power from the wall , more tests need to be run on the exact hours and power draw 
 it runs super cool and has no cooling fans inside the case the whole thing is passively cooled and runs pretty fast it boots up in around 1 min and can start providing internet in case off emergency 
 
 ## Phone audio
@@ -16,4 +17,5 @@ it runs super cool and has no cooling fans inside the case the whole thing is pa
 Phone audio integration is currently working and many more plugins 
 
 #storage
-there is also a 500gb ssd atached to the usb port on the modem that stores files and shares them to all connected devices over smb and ftp 
+
+There is also a 500gb ssd atached to the usb port on the modem that stores files and shares them to all connected devices over smb and ftp 
