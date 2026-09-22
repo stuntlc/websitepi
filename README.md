@@ -4,4 +4,4 @@ a website for pi that can read sensors from ads1115 and vma407 and read volts vi
 
 ## Phone audio
 
-Phone audio integration is currently removed. Raw gadget mode is planned for a future Raspberry Pi image rebuild.
+Phone audio integration is currently working and many more plugins 
