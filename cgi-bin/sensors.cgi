@@ -27,19 +27,39 @@ def run_adb(args, timeout=10):
     )
 
 
-def value_after(text, label, lookahead=5):
+NUM = r"-?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?"
+VECTOR_PATTERNS = [
+    re.compile(r"\[\s*(" + NUM + r")\s*,\s*(" + NUM + r")\s*,\s*(" + NUM + r")\s*\]"),
+    re.compile(r"<\s*(" + NUM + r")\s*,\s*(" + NUM + r")\s*,\s*(" + NUM + r")\s*>"),
+    re.compile(r"x\s*[:=]\s*(" + NUM + r")[^0-9\-]+y\s*[:=]\s*(" + NUM + r")[^0-9\-]+z\s*[:=]\s*(" + NUM + r")", re.IGNORECASE),
+]
+SCALAR_PATTERNS = [
+    re.compile(r"\[\s*(" + NUM + r")\s*\]"),
+    re.compile(r"value[s]?\s*[:=]\s*(" + NUM + r")", re.IGNORECASE),
+]
+
+
+def extract_reading(text, label, vector=True, lookahead=8):
+    """Scan for the sensor's name and pull the freshest numeric reading near it.
+
+    Different Android/vendor builds format "dumpsys sensorservice" differently
+    (bracketed vectors, angle-bracket vectors, or x=/y=/z= tuples), so try each
+    shape and keep the last (most recent) match found in the whole dump.
+    """
     lines = text.splitlines()
-    # "Recent Sensor events" lines carry both the label and the value on one line;
-    # the last such line is the freshest reading, so prefer that over the sensor list header.
-    combined = [line.strip() for line in lines if label in line.lower() and "value" in line.lower()]
-    if combined:
-        return combined[-1]
+    lower_label = label.lower()
+    patterns = VECTOR_PATTERNS if vector else SCALAR_PATTERNS
+    best = ""
     for index, line in enumerate(lines):
-        if label in line.lower():
-            for candidate in lines[index:index + lookahead]:
-                if "value" in candidate.lower():
-                    return candidate.strip()
-    return ""
+        if lower_label not in line.lower():
+            continue
+        window = "\n".join(lines[index:index + lookahead])
+        for pattern in patterns:
+            match = pattern.search(window)
+            if match:
+                best = ", ".join(match.groups())
+                break
+    return best
 
 
 def first_number(text):
@@ -63,17 +83,25 @@ except (OSError, subprocess.TimeoutExpired) as error:
     raise SystemExit
 
 battery_match = re.search(r"level:\s*(-?\d+)", battery_dump, re.IGNORECASE)
-wifi_match = re.search(r"RSSI:?\s*(-?\d+)", wifi_dump, re.IGNORECASE)
+# Real Wi-Fi RSSI is always negative dBm; requiring the sign avoids matching
+# unrelated positive counters (e.g. "Num RSSI polls") earlier in the dump.
+wifi_match = re.search(r"RSSI:?\s*(-\d+)", wifi_dump, re.IGNORECASE)
 bt_match = re.search(r"enabled:?\s*(true|false)", bt_dump, re.IGNORECASE)
+
+try:
+    with open(os.path.join(os.path.dirname(__file__), "..", "logs", "sensors-debug.log"), "w", encoding="utf-8") as debug_file:
+        debug_file.write(sensors)
+except OSError:
+    pass
 
 respond({
     "ok": True,
     "timestamp": int(time.time()),
-    "accelerometer": value_after(sensors, "accelerometer"),
-    "gyroscope": value_after(sensors, "gyroscope"),
-    "light": value_after(sensors, "light"),
-    "proximity": value_after(sensors, "proximity"),
-    "orientation": value_after(sensors, "orientation"),
+    "accelerometer": extract_reading(sensors, "accelerometer", vector=True),
+    "gyroscope": extract_reading(sensors, "gyroscope", vector=True),
+    "light": extract_reading(sensors, "light", vector=False),
+    "proximity": extract_reading(sensors, "proximity", vector=False),
+    "orientation": extract_reading(sensors, "orientation", vector=True),
     "battery": battery_match.group(1) if battery_match else "",
     "thermal": first_number(thermal),
     "wifi_rssi": wifi_match.group(1) if wifi_match else "",
