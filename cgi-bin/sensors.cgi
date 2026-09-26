@@ -50,7 +50,22 @@ def extract_reading(text, label, vector=True, lookahead=8):
     lower_label = label.lower()
     patterns = VECTOR_PATTERNS if vector else SCALAR_PATTERNS
     best = ""
+    event_header = re.compile(r"^\s*(.+?):\s+last\s+\d+\s+events\s*$", re.IGNORECASE)
+    event_label = ""
     for index, line in enumerate(lines):
+        header = event_header.match(line)
+        if header:
+            event_label = header.group(1).strip().lower()
+            continue
+        if event_label == lower_label:
+            event = re.match(r"^\s*\d+\s+\(ts=[^)]+\)\s*(.*)$", line)
+            if event:
+                values = re.findall(NUM, event.group(1))
+                required = 3 if vector else 1
+                if len(values) >= required:
+                    best = ", ".join(values[:required])
+            continue
+        event_label = ""
         if lower_label not in line.lower():
             continue
         window = "\n".join(lines[index:index + lookahead])

@@ -181,12 +181,16 @@ async function updateSensors() {
 
     const accelValues = parseNumbers(data.accelerometer);
     document.getElementById("accel-raw").textContent = data.accelerometer || "--";
-    [0, 1, 2].forEach(i => pushHistory(history.accel[i], accelValues[i] ?? (history.accel[i].at(-1) ?? 0)));
+    if (accelValues.length >= 3) {
+      [0, 1, 2].forEach(i => pushHistory(history.accel[i], accelValues[i]));
+    }
     drawChart("chart-accel", history.accel, ["#ff7b83", "#00ff66", "#78d7ff"]);
 
     const gyroValues = parseNumbers(data.gyroscope);
     document.getElementById("gyro-raw").textContent = data.gyroscope || "--";
-    [0, 1, 2].forEach(i => pushHistory(history.gyro[i], gyroValues[i] ?? (history.gyro[i].at(-1) ?? 0)));
+    if (gyroValues.length >= 3) {
+      [0, 1, 2].forEach(i => pushHistory(history.gyro[i], gyroValues[i]));
+    }
     drawChart("chart-gyro", history.gyro, ["#ff7b83", "#00ff66", "#78d7ff"]);
 
     const lightValue = parseNumbers(data.light)[0];
@@ -198,7 +202,9 @@ async function updateSensors() {
 
     document.getElementById("prox-raw").textContent = data.proximity || "--";
     const proxValue = parseNumbers(data.proximity)[0];
-    setIndicator(document.getElementById("prox-indicator"), proxValue === 0, "NEAR", "FAR");
+    if (proxValue !== undefined) {
+      setIndicator(document.getElementById("prox-indicator"), proxValue === 0, "NEAR", "FAR");
+    }
 
     const orientValues = parseNumbers(data.orientation);
     document.getElementById("orient-azimuth").textContent = orientValues[0] ?? "--";
