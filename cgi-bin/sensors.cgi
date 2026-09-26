@@ -98,9 +98,8 @@ except (OSError, subprocess.TimeoutExpired) as error:
     raise SystemExit
 
 battery_match = re.search(r"level:\s*(-?\d+)", battery_dump, re.IGNORECASE)
-# Real Wi-Fi RSSI is always negative dBm; requiring the sign avoids matching
-# unrelated positive counters (e.g. "Num RSSI polls") earlier in the dump.
-wifi_match = re.search(r"RSSI:?\s*(-\d+)", wifi_dump, re.IGNORECASE)
+wifi_values = re.findall(r"\b(?:m?RSSI)\s*[:=]\s*(-?\d+)\b", wifi_dump, re.IGNORECASE)
+wifi_rssi = next((value for value in reversed(wifi_values) if -127 <= int(value) < 0), "")
 bt_match = re.search(r"enabled:?\s*(true|false)", bt_dump, re.IGNORECASE)
 
 try:
@@ -119,6 +118,6 @@ respond({
     "orientation": extract_reading(sensors, "orientation", vector=True),
     "battery": battery_match.group(1) if battery_match else "",
     "thermal": first_number(thermal),
-    "wifi_rssi": wifi_match.group(1) if wifi_match else "",
+    "wifi_rssi": wifi_rssi,
     "bluetooth_enabled": bt_match.group(1).lower() if bt_match else "",
 })
