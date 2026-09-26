@@ -76,10 +76,6 @@ canvas { width: 100%; height: 120px; display: block; margin-top: 8px; background
       <div class="bar-track"><div class="bar-fill" id="battery-bar"></div></div>
     </section>
 
-    <section class="panel">
-      <h2 class="panel-title"><span>BLUETOOTH</span><span>STATE</span></h2>
-      <span class="indicator" id="bt-indicator">UNKNOWN</span>
-    </section>
   </div>
 </main>
 <script>
@@ -190,7 +186,6 @@ async function updateSensors() {
     }
     drawChart("chart-thermal", [history.thermal], ["#ee6b72"]);
 
-    setIndicator(document.getElementById("bt-indicator"), data.bluetooth_enabled === "true", "ON", "OFF");
   } catch (error) {
     statusEl.textContent = "ERROR: " + error.message;
     statusEl.classList.add("error");
