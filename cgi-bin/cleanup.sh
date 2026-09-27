@@ -8,7 +8,6 @@ cd /home/q/websd/piscripts || exit 1
 NEWEST=$(ls -t *.jpg *.jpeg 2>/dev/null \
     | grep -v "^1\.jpeg$" \
     | grep -v "^skunk-bg\.jpg$" \
-    | grep -v "^skunk-logo\.png$" \
     | head -n 1)
 
 echo "Newest file: $NEWEST"
@@ -18,7 +17,7 @@ for f in *.jpg *.jpeg; do
 
     # Skip protected files
     case "$f" in
-        "1.jpeg"|"skunk-bg.jpg"|"skunk-logo.png")
+        "1.jpeg"|"skunk-bg.jpg")
             continue
             ;;
     esac
