@@ -64,6 +64,14 @@ try:
         pi.write(username.encode("ascii") + b"\n")
         pi.read_until(b"Password: ", 8)
         pi.write(password.encode("ascii") + b"\n")
+        # Skip straight past the login shell's MOTD/banner into a bare, promptless /bin/sh.
+        ready_marker = "WEBSH_READY_%d" % int(time.time() * 1000)
+        pi.write(b"PS1= exec /bin/sh\n")
+        pi.write(("echo " + ready_marker + "\n").encode("ascii"))
+        pi.read_until(ready_marker.encode("ascii"), 8)  # consume echoed input line
+        ready_buf = pi.read_until(ready_marker.encode("ascii"), 8)  # consume banner + actual output
+        if ready_marker.encode("ascii") not in ready_buf:
+            raise ConnectionError("Pi shell did not become ready.")
         marker = "WEBSH_DONE_%d" % int(time.time() * 1000)
         pi.write(command.rstrip("\r\n").encode("utf-8", errors="replace") + b"\n")
         pi.write(("echo " + marker + "\n").encode("ascii"))

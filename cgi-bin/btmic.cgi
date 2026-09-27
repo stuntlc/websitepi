@@ -28,6 +28,7 @@ def _read_until_idle(telnet, end_marker, timeout):
 
 
 def run_remote(command, timeout=20):
+    ready_marker = ("BTMIC_READY_%d" % int(time.time() * 1000)).encode("ascii")
     end_marker = ("BTMIC_END_%d" % int(time.time() * 1000)).encode("ascii")
     try:
         telnet = telnetlib.Telnet(HOST, 23, 8)
@@ -35,16 +36,18 @@ def run_remote(command, timeout=20):
         telnet.write(REMOTE_USER.encode("ascii") + b"\n")
         telnet.read_until(b"Password: ", 8)
         telnet.write(PASSWORD.encode("ascii") + b"\n")
-        time.sleep(1)
-        prompt = telnet.read_very_eager().strip(b"\r\n")
+        # Skip straight past the login shell's MOTD/banner into a bare, promptless /bin/sh.
+        telnet.write(b"PS1= exec /bin/sh\n")
+        telnet.write(b"echo " + ready_marker + b"\n")
+        ready_buf = telnet.read_until(ready_marker, 8)
+        if ready_marker not in ready_buf:
+            raise ConnectionError("Pi5 shell did not become ready.")
         telnet.write(command.encode("utf-8", errors="replace") + b"\n")
         telnet.write(b"echo " + end_marker + b":$?\n")
         buf = _read_until_idle(telnet, end_marker, timeout)
         telnet.close()
     except (OSError, EOFError) as error:
         raise ConnectionError(str(error)) from error
-    if prompt:
-        buf = buf.replace(prompt, b"")
     text = buf.decode("utf-8", errors="replace").replace("\r", "")
     matches = re.findall(re.escape(end_marker.decode("ascii")) + r":(\d+)", text)
     returncode = int(matches[-1]) if matches else 1

@@ -33,8 +33,13 @@ try:
     telnet.write(REMOTE_USER.encode("ascii") + b"\n")
     telnet.read_until(b"Password: ", 8)
     telnet.write(PASSWORD.encode("ascii") + b"\n")
-    time.sleep(1)
-    prompt = telnet.read_very_eager().strip(b"\r\n")
+    # Skip straight past the login shell's MOTD/banner into a bare, promptless /bin/sh.
+    ready_marker = ("BTMIC_FILE_READY_%d" % int(time.time() * 1000)).encode("ascii")
+    telnet.write(b"PS1= exec /bin/sh\n")
+    telnet.write(b"echo " + ready_marker + b"\n")
+    ready_buf = telnet.read_until(ready_marker, 8)
+    if ready_marker not in ready_buf:
+        raise ConnectionError("Pi5 shell did not become ready.")
     quoted = remote_path.replace("'", "'\\''")
     telnet.write(
         ("test -f '" + quoted + "' && base64 '" + quoted + "' || echo " + not_found.decode("ascii") + "\n").encode("utf-8")
@@ -67,8 +72,6 @@ if not_found in buf:
     print("Recording not found.")
     raise SystemExit
 
-if prompt:
-    buf = buf.replace(prompt, b"")
 text = buf.decode("ascii", errors="ignore")
 end_index = text.find(end_marker.decode("ascii"))
 payload = text[:end_index] if end_index != -1 else text
