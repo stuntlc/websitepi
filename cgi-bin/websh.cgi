@@ -6,6 +6,8 @@ import subprocess
 import telnetlib
 import time
 
+PI_HOST = "10.0.0.11"
+
 SESSION_DIR = "/tmp/websitepi-websh-sessions"
 
 cookies = http.cookies.SimpleCookie(os.environ.get("HTTP_COOKIE", ""))
@@ -57,32 +59,17 @@ try:
         print(output.rstrip() or "Modem returned no output.")
         raise SystemExit
     elif target == "pi":
-        password = os.environ.get("WEBSSH_PASSWORD", "jee")
         username = os.environ.get("WEBSSH_USER", "q")
-        pi = telnetlib.Telnet("10.0.0.11", 23, 8)
-        pi.read_until(b"login: ", 8)
-        pi.write(username.encode("ascii") + b"\n")
-        pi.read_until(b"Password: ", 8)
-        pi.write(password.encode("ascii") + b"\n")
-        # Skip straight past the login shell's MOTD/banner into a bare, promptless /bin/sh.
-        ready_marker = "WEBSH_READY_%d" % int(time.time() * 1000)
-        pi.write(b"PS1= exec /bin/sh\n")
-        pi.write(("echo " + ready_marker + "\n").encode("ascii"))
-        pi.read_until(ready_marker.encode("ascii"), 8)  # consume echoed input line
-        ready_buf = pi.read_until(ready_marker.encode("ascii"), 8)  # consume banner + actual output
-        if ready_marker.encode("ascii") not in ready_buf:
-            raise ConnectionError("Pi shell did not become ready.")
-        marker = "WEBSH_DONE_%d" % int(time.time() * 1000)
-        pi.write(command.rstrip("\r\n").encode("utf-8", errors="replace") + b"\n")
-        pi.write(("echo " + marker + "\n").encode("ascii"))
-        pi.read_until(marker.encode("ascii"), 15)
-        pi_raw = pi.read_until(marker.encode("ascii"), 15)
-        pi.close()
-        pi_output = pi_raw.decode("utf-8", errors="replace").replace("\r", "")
-        lines = pi_output.split("\n")
-        pi_output = "\n".join(line for line in lines if marker not in line and line.strip() != command.strip())
-        output = pi_output.strip()
-        print(output or "Command returned no output.")
+        process = subprocess.run(
+            ["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=8", username + "@" + PI_HOST, command],
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+        output = (process.stdout + process.stderr).replace("\r", "")
+        print(output.rstrip() or "Command returned no output.")
+        if process.returncode != 0:
+            print("\n[exit status: %s]" % process.returncode)
         raise SystemExit
     else:
         process = subprocess.run(
@@ -96,14 +83,14 @@ except OSError as error:
         print("Could not connect to modem Telnet: " + str(error))
         raise SystemExit
     if target == "pi":
-        print("Could not connect to Pi Telnet: " + str(error))
+        print("Could not connect to Pi via SSH: " + str(error))
         raise SystemExit
     if isinstance(error, FileNotFoundError):
         print("Required command is unavailable: " + error.filename)
         raise SystemExit
     raise
 except EOFError:
-    print("Pi Telnet session closed unexpectedly (check login/password).")
+    print("Modem Telnet session closed unexpectedly.")
     raise SystemExit
 except subprocess.TimeoutExpired:
     print("Command timed out.")

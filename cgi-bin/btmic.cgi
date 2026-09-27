@@ -2,57 +2,24 @@
 import cgi
 import json
 import os
-import re
-import telnetlib
-import time
+import subprocess
 
 HOST = "10.0.0.50"
 REMOTE_USER = os.environ.get("BTMIC_SSH_USER", os.environ.get("WEBSSH_USER", "q"))
-PASSWORD = os.environ.get("BTMIC_SSH_PASSWORD", os.environ.get("WEBSSH_PASSWORD", "jee"))
 REMOTE_SCRIPT = "/home/q/btmic.sh"
 
 
-def _read_until_idle(telnet, end_marker, timeout):
-    buf = b""
-    deadline = time.time() + timeout
-    last_growth = time.time()
-    while time.time() < deadline:
-        time.sleep(0.3)
-        chunk = telnet.read_very_eager()
-        if chunk:
-            buf += chunk
-            last_growth = time.time()
-        elif end_marker in buf and time.time() - last_growth > 0.6:
-            break
-    return buf
-
-
 def run_remote(command, timeout=20):
-    ready_marker = ("BTMIC_READY_%d" % int(time.time() * 1000)).encode("ascii")
-    end_marker = ("BTMIC_END_%d" % int(time.time() * 1000)).encode("ascii")
     try:
-        telnet = telnetlib.Telnet(HOST, 23, 8)
-        telnet.read_until(b"login: ", 8)
-        telnet.write(REMOTE_USER.encode("ascii") + b"\n")
-        telnet.read_until(b"Password: ", 8)
-        telnet.write(PASSWORD.encode("ascii") + b"\n")
-        # Skip straight past the login shell's MOTD/banner into a bare, promptless /bin/sh.
-        telnet.write(b"PS1= exec /bin/sh\n")
-        telnet.write(b"echo " + ready_marker + b"\n")
-        ready_buf = telnet.read_until(ready_marker, 8)
-        if ready_marker not in ready_buf:
-            raise ConnectionError("Pi5 shell did not become ready.")
-        telnet.write(command.encode("utf-8", errors="replace") + b"\n")
-        telnet.write(b"echo " + end_marker + b":$?\n")
-        buf = _read_until_idle(telnet, end_marker, timeout)
-        telnet.close()
-    except (OSError, EOFError) as error:
+        process = subprocess.run(
+            ["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=8", REMOTE_USER + "@" + HOST, command],
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+    except OSError as error:
         raise ConnectionError(str(error)) from error
-    text = buf.decode("utf-8", errors="replace").replace("\r", "")
-    matches = re.findall(re.escape(end_marker.decode("ascii")) + r":(\d+)", text)
-    returncode = int(matches[-1]) if matches else 1
-    output = re.sub(re.escape(end_marker.decode("ascii")) + r":\d+", "", text)
-    return returncode, output.strip()
+    return process.returncode, (process.stdout + process.stderr).strip()
 
 
 def respond(payload, status=None):
@@ -94,6 +61,9 @@ try:
     returncode, output = run_remote(commands[action], timeout=30 if action == "list" else 20)
 except ConnectionError as error:
     respond({"ok": False, "error": "Pi5 connection failed: " + str(error)}, "502 Bad Gateway")
+    raise SystemExit
+except subprocess.TimeoutExpired:
+    respond({"ok": False, "error": "Pi5 command timed out."}, "502 Bad Gateway")
     raise SystemExit
 
 if returncode != 0:
