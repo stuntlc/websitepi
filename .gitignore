@@ -4,6 +4,8 @@
 202*.jpeg
 latest.txt
 piscripts/phone-*.jpg
+__pycache__/
+*.pyc
 
 # Android Studio project artifacts (keep sources + android/UdpMic.apk only)
 android/UdpMic/build/
