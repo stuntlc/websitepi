@@ -59,12 +59,23 @@ try:
     elif target == "pi":
         password = os.environ.get("WEBSSH_PASSWORD", "jee")
         username = os.environ.get("WEBSSH_USER", "q")
-        process = subprocess.run(
-            ["sshpass", "-p", password, "ssh", "-o", "StrictHostKeyChecking=accept-new", username + "@10.0.0.11", command],
-            capture_output=True,
-            text=True,
-            timeout=15,
-        )
+        pi = telnetlib.Telnet("10.0.0.11", 23, 8)
+        pi.read_until(b"login: ", 8)
+        pi.write(username.encode("ascii") + b"\n")
+        pi.read_until(b"Password: ", 8)
+        pi.write(password.encode("ascii") + b"\n")
+        marker = "WEBSH_DONE_%d" % int(time.time() * 1000)
+        pi.write(command.rstrip("\r\n").encode("utf-8", errors="replace") + b"\n")
+        pi.write(("echo " + marker + "\n").encode("ascii"))
+        pi.read_until(marker.encode("ascii"), 15)
+        pi_raw = pi.read_until(marker.encode("ascii"), 15)
+        pi.close()
+        pi_output = pi_raw.decode("utf-8", errors="replace").replace("\r", "")
+        lines = pi_output.split("\n")
+        pi_output = "\n".join(line for line in lines if marker not in line and line.strip() != command.strip())
+        output = pi_output.strip()
+        print(output or "Command returned no output.")
+        raise SystemExit
     else:
         process = subprocess.run(
             ["adb", "shell", command],
@@ -76,10 +87,16 @@ except OSError as error:
     if target == "modem":
         print("Could not connect to modem Telnet: " + str(error))
         raise SystemExit
+    if target == "pi":
+        print("Could not connect to Pi Telnet: " + str(error))
+        raise SystemExit
     if isinstance(error, FileNotFoundError):
         print("Required command is unavailable: " + error.filename)
         raise SystemExit
     raise
+except EOFError:
+    print("Pi Telnet session closed unexpectedly (check login/password).")
+    raise SystemExit
 except subprocess.TimeoutExpired:
     print("Command timed out.")
     raise SystemExit
