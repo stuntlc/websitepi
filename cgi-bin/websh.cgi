@@ -63,8 +63,10 @@ try:
         raise SystemExit
     elif target == "pi":
         username = os.environ.get("WEBSSH_USER", "q")
+        # Non-interactive ssh doesn't source .bashrc, so sbin (ifconfig, ip, etc.) is missing from PATH by default.
+        remote_command = "export PATH=\"/usr/local/sbin:/usr/sbin:/sbin:$PATH\"; " + command
         process = subprocess.run(
-            ["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=8", username + "@" + PI_HOST, command],
+            ["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=8", username + "@" + PI_HOST, remote_command],
             capture_output=True,
             text=True,
             timeout=15,
