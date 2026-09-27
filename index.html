@@ -17,7 +17,8 @@ html, body {
 }
 
 body {
-  background: #000;
+  background: #000 url("skunk-bg.jpg") no-repeat center center fixed;
+  background-size: cover;
   color: #fff;
   font-family: "Courier New", monospace;
   font-size: 14px;
@@ -60,6 +61,17 @@ body::before {
   color: #00ff00;
   margin: 0;
   display: none;
+}
+
+.brand {
+  display: flex;
+  justify-content: center;
+}
+
+.brand-logo {
+  height: 30px;
+  width: auto;
+  filter: drop-shadow(0 0 6px rgba(0, 255, 0, 0.6));
 }
 
 .controls-row {
@@ -485,6 +497,7 @@ body::before { background: rgba(0, 0, 0, 0.82); }
 <body>
 
 <div class="topbar">
+  <div class="brand"><img src="skunk-logo.png" alt="Skunk Works" class="brand-logo"></div>
   <h1>SKUNK WORKS NOC</h1>
   
   <div class="controls-row">
