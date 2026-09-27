@@ -2,6 +2,7 @@
 import cgi
 import http.cookies
 import os
+import re
 import subprocess
 import telnetlib
 import time
@@ -51,11 +52,13 @@ if target == "modem" and not command.isascii():
 try:
     if target == "modem":
         modem = telnetlib.Telnet("10.0.0.1", 8888, 8)
+        # Every new connection dumps a startup banner + prompt before accepting input; discard it first.
+        modem.read_until(b"# ", 5)
         modem.write((command.rstrip("\r\n") + "\r\n").encode("ascii"))
         time.sleep(1)
         modem_output = modem.read_very_eager().decode("utf-8", errors="replace")
         modem.close()
-        output = modem_output.replace("\r", "")
+        output = re.sub(r"\x1b\[[0-9;]*m", "", modem_output.replace("\r", ""))
         print(output.rstrip() or "Modem returned no output.")
         raise SystemExit
     elif target == "pi":
