@@ -1,0 +1,14 @@
+[Unit]
+Description=OUI new device watcher for websitepi
+After=network.target
+
+[Service]
+ExecStart=/home/q/websd/piscripts/ouiwatch.sh
+WorkingDirectory=/home/q/websd
+Restart=always
+RestartSec=5
+User=q
+Environment=PATH=/usr/bin:/bin:/usr/local/bin
+
+[Install]
+WantedBy=multi-user.target

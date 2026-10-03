@@ -99,6 +99,26 @@ button:hover, a:hover { border-color: var(--green); color: white; }
       <h2 class="panel-title"><span>OUI INVENTORY</span><span>LIVE</span></h2>
       <div id="devices" class="device-list"></div>
       <div id="empty" hidden>No ARP observations returned.</div>
+      <h3 class="section-label">NEW DEVICE ALERTS // SMS</h3>
+      <form id="alert-form" class="device">
+        <label><input id="sms-enabled" type="checkbox"> SMS on new device</label>
+        <input id="sms-number" type="tel" placeholder="+32470123456" autocomplete="off" style="width:100%;box-sizing:border-box;margin:6px 0;background:#000;color:inherit;border:1px solid currentColor;padding:6px;font:inherit">
+        <button type="submit">[ SAVE ]</button> <span id="alert-status"></span>
+      </form>
+      <div id="alerts"></div>
+      <h3 class="section-label">SEND NETWORK REPORT // SMS</h3>
+      <form id="report-form" class="device">
+        <input id="report-number" type="tel" placeholder="+32470123456" autocomplete="off" style="width:100%;box-sizing:border-box;margin:6px 0;background:#000;color:inherit;border:1px solid currentColor;padding:6px;font:inherit">
+        <button type="submit">[ SEND SMS ]</button> <span id="report-status"></span>
+        <input id="report-email" type="email" placeholder="you@example.com" autocomplete="off" style="width:100%;box-sizing:border-box;margin:6px 0;background:#000;color:inherit;border:1px solid currentColor;padding:6px;font:inherit">
+        <button id="report-email-send" type="button">[ SEND EMAIL ]</button> <span id="email-status"></span>
+        <pre id="report-preview" style="white-space:pre-wrap;font-size:11px;margin:6px 0 0"></pre>
+      </form>
+      <h3 class="section-label">DEEP SCAN // MODEM WIFI + LOG</h3>
+      <button id="deep" type="button">[ DEEP SCAN ]</button>
+      <div id="deep-status"></div>
+      <div id="deep-results"></div>
+      <pre id="modem-log" style="white-space:pre-wrap;font-size:11px;margin:0"></pre>
     </aside>
   </div>
 </main>
@@ -189,10 +209,43 @@ function render(data) {
   renderLeases(devices, (data.eth0 || {}).gateway || "10.0.0.1");
   const modemEth = renderModem(data);
   devicesElement.innerHTML = devices.map(device =>
-    `<article class="device"><strong>${escapeHtml(device.ip)}${device.role ? " // " + escapeHtml(device.role) : ""}</strong><span>${escapeHtml(device.vendor)}</span><span>OUI ${escapeHtml(device.oui || "------")} // ${escapeHtml(device.mac)}</span></article>`
+    `<article class="device"><strong>${escapeHtml(device.ip)}${device.role ? " // " + escapeHtml(device.role) : ""}${device.new ? " // NEW" : ""}</strong><span>${escapeHtml(device.vendor)} // ${escapeHtml(device.device_type || "Unknown device")}</span><span>OUI ${escapeHtml(device.oui || "------")} // ${escapeHtml(device.mac)}${device.randomized_mac ? " // RANDOMIZED MAC" : ""}</span>${device.hostname ? `<span>HOST ${escapeHtml(device.hostname)}</span>` : ""}<span>FIRST SEEN ${device.first_seen ? escapeHtml(new Date(device.first_seen).toLocaleString()) : "--"}</span></article>`
   ).join("");
   document.getElementById("empty").hidden = devices.length > 0;
+  const config = data.config || {};
+  if (!configLoaded) {
+    document.getElementById("sms-number").value = config.sms_number || "";
+    document.getElementById("report-number").value = config.sms_number || "";
+    document.getElementById("sms-enabled").checked = !!config.sms_enabled;
+    configLoaded = true;
+  }
+  document.getElementById("alerts").innerHTML = (data.recent_alerts || []).slice().reverse().map(line => `<article class="device"><span>${escapeHtml(line)}</span></article>`).join("");
+  notifyNew(data.new_devices || []);
 }
+
+let configLoaded = false;
+
+function notifyNew(newDevices) {
+  if (!newDevices.length || !("Notification" in window)) return;
+  const show = () => newDevices.forEach(device => new Notification("New device on network", { body: `${device.ip} ${device.mac}\n${device.vendor} (${device.device_type})` }));
+  if (Notification.permission === "granted") show();
+  else if (Notification.permission !== "denied") Notification.requestPermission().then(permission => { if (permission === "granted") show(); });
+}
+
+document.getElementById("alert-form").addEventListener("submit", async event => {
+  event.preventDefault();
+  const status = document.getElementById("alert-status");
+  const body = new URLSearchParams({ number: document.getElementById("sms-number").value, enabled: document.getElementById("sms-enabled").checked ? "1" : "0" });
+  try {
+    const response = await fetch("/cgi-bin/oui-config.cgi", { method: "POST", body });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || "HTTP " + response.status);
+    document.getElementById("sms-number").value = result.sms_number;
+    status.textContent = "SAVED";
+  } catch (error) {
+    status.textContent = error.message;
+  }
+});
 
 async function scan() {
   statusElement.textContent = "SCANNING...";
@@ -206,8 +259,78 @@ async function scan() {
   }
 }
 
+function buildReport() {
+  const devices = (window.networkData || {}).devices || [];
+  const clean = text => String(text || "").replace(/[^\x20-\x7e]/g, "?");
+  const lines = devices.map(device => clean(`${device.ip} ${device.mac} ${(device.vendor || "Unknown").slice(0, 22)} [${device.device_type || "?"}]${device.randomized_mac ? " rnd-MAC" : ""}${device.new ? " NEW" : ""}`));
+  let message = `Network ${devices.length} hosts`;
+  let included = 0;
+  for (const line of lines) {
+    if ((message + "\n" + line).length > 950) break;
+    message += "\n" + line;
+    included++;
+  }
+  if (included < lines.length) message += `\n+${lines.length - included} more`;
+  return message;
+}
+
+document.getElementById("report-form").addEventListener("submit", async event => {
+  event.preventDefault();
+  const status = document.getElementById("report-status");
+  const number = document.getElementById("report-number").value.trim();
+  if (!window.networkData || !(window.networkData.devices || []).length) { status.textContent = "No scan data yet."; return; }
+  const message = buildReport();
+  document.getElementById("report-preview").textContent = message;
+  status.textContent = "SENDING...";
+  try {
+    const response = await fetch("/cgi-bin/sms-send.cgi", { method: "POST", body: new URLSearchParams({ number, message }) });
+    const text = (await response.text()).trim();
+    status.textContent = response.ok ? "SENT" : text || "HTTP " + response.status;
+  } catch (error) {
+    status.textContent = error.message;
+  }
+});
+
+document.getElementById("report-email-send").addEventListener("click", async () => {
+  const status = document.getElementById("email-status");
+  const devices = (window.networkData || {}).devices || [];
+  if (!devices.length) { status.textContent = "No scan data yet."; return; }
+  const message = `Network ${devices.length} hosts\n\n` + devices.map(device =>
+    `${device.ip}\t${device.mac}\t${device.vendor || "Unknown"} [${device.device_type || "?"}]${device.hostname ? " host=" + device.hostname : ""}${device.randomized_mac ? " randomized-MAC" : ""}${device.new ? " NEW" : ""}`
+  ).join("\n");
+  status.textContent = "SENDING...";
+  try {
+    const response = await fetch("/cgi-bin/oui-email.cgi", { method: "POST", body: new URLSearchParams({ to: document.getElementById("report-email").value.trim(), message }) });
+    status.textContent = (await response.text()).trim() || "HTTP " + response.status;
+  } catch (error) {
+    status.textContent = error.message;
+  }
+});
+
+document.getElementById("deep").addEventListener("click", async () => {
+  const status = document.getElementById("deep-status");
+  status.textContent = "Enabling modem web server if needed and scanning (up to ~30s)...";
+  try {
+    const response = await fetch("/cgi-bin/oui-deep.cgi?t=" + Date.now(), { cache: "no-store" });
+    const deep = await response.json();
+    const known = new Map(((window.networkData || {}).devices || []).map(device => [device.mac, device]));
+    status.textContent = deep.reachable ? `MODEM REACHABLE${deep.enabled_now ? " (web server started via serial)" : ""} // ${deep.wifi_stations.length} WIFI STATION(S)` : `MODEM WEB UNREACHABLE ${deep.enable_log}`;
+    const wifi = deep.wifi_stations.map(station => {
+      const device = known.get(station.mac) || {};
+      const lease = deep.dhcp_leases.find(item => item.mac === station.mac) || {};
+      return `<article class="device"><strong>WIFI ${escapeHtml(station.mac)} // ${escapeHtml(lease.ip || device.ip || "no IP")}</strong><span>${escapeHtml(device.vendor || "Unknown vendor")} // ${escapeHtml(device.device_type || "")}</span><span>SSID ${escapeHtml(station.ssid)} // ${escapeHtml(station.mode)} // ${escapeHtml(station.tx_rate)} Mbps // idle ${escapeHtml(station.expired)}s</span><span>TX ${escapeHtml(station.tx_packets)} / RX ${escapeHtml(station.rx_packets)} // power save ${escapeHtml(station.power_saving)}</span></article>`;
+    });
+    const leases = deep.dhcp_leases.filter(lease => !lease.wifi).map(lease => `<article class="device"><strong>DHCP ${escapeHtml(lease.ip)} // ${escapeHtml(lease.mac)}</strong><span>expires in ${escapeHtml(lease.expires)}s</span></article>`);
+    document.getElementById("deep-results").innerHTML = wifi.concat(leases).join("");
+    document.getElementById("modem-log").textContent = deep.syslog.join("\n") || "No modem log entries.";
+  } catch (error) {
+    status.textContent = "DEEP SCAN FAILED: " + error.message;
+  }
+});
+
 document.getElementById("refresh").addEventListener("click", scan);
 scan();
+setInterval(scan, 60000);
 </script>
 </body>
 </html>

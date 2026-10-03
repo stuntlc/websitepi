@@ -172,7 +172,99 @@ for row in os.environ.get("SCAN_DATA", "").splitlines():
     devices.append({"ip": ip, "mac": mac, "oui": oui, "vendor": vendor, "device_type": device_type(vendor), "role": role})
 
 devices.sort(key=lambda device: tuple(int(part) for part in device["ip"].split(".")))
+
+import subprocess
+
+root_dir = os.path.dirname(os.path.dirname(os.path.abspath(os.environ.get("SCRIPT_FILENAME") or "/home/q/websd/cgi-bin/oui.cgi")))
+data_dir = os.path.join(root_dir, "logs")
+config_path = os.path.join(data_dir, "oui-config.json")
+known_path = os.path.join(data_dir, "oui-known.json")
+alerts_path = os.path.join(data_dir, "oui-alerts.log")
+
+def load_json(path, default):
+    try:
+        with open(path, encoding="utf-8") as handle:
+            return json.load(handle)
+    except (OSError, ValueError):
+        return default
+
+def save_json(path, value):
+    os.makedirs(data_dir, exist_ok=True)
+    temporary = path + ".tmp"
+    with open(temporary, "w", encoding="utf-8") as handle:
+        json.dump(value, handle, indent=1)
+    os.replace(temporary, path)
+
+dhcp_names = {}
+for lease_file in ("/var/lib/misc/dnsmasq.leases", "/var/lib/dhcp/dhcpd.leases"):
+    try:
+        with open(lease_file, encoding="utf-8", errors="ignore") as handle:
+            for line in handle:
+                fields = line.split()
+                if len(fields) >= 4 and fields[1].count(":") == 5:
+                    dhcp_names[fields[1].upper()] = fields[3] if fields[3] != "*" else ""
+    except OSError:
+        continue
+
+now_iso = datetime.now(timezone.utc).isoformat()
+config = load_json(config_path, {})
+known = load_json(known_path, None)
+baseline = known is None
+known = known or {}
+new_devices = []
+for device in devices:
+    first_digit = int(device["mac"][1], 16)
+    device["randomized_mac"] = bool(first_digit & 0x2)
+    device["hostname"] = dhcp_names.get(device["mac"], "")
+    entry = known.get(device["mac"])
+    if entry is None:
+        entry = {"first_seen": now_iso, "ip": device["ip"], "vendor": device["vendor"]}
+        known[device["mac"]] = entry
+        if not baseline:
+            new_devices.append(device)
+    entry["last_seen"] = now_iso
+    entry["ip"] = device["ip"]
+    device["first_seen"] = entry["first_seen"]
+    device["last_seen"] = entry["last_seen"]
+    device["new"] = device in new_devices
+
+sms_results = []
+if new_devices:
+    number = config.get("sms_number", "")
+    for device in new_devices:
+        description = "%s %s %s %s%s" % (
+            device["ip"], device["mac"], device["vendor"], device["device_type"],
+            " (randomized MAC)" if device["randomized_mac"] else "")
+        description = re.sub(r"[^\x20-\x7e]", "?", description)
+        try:
+            with open(alerts_path, "a", encoding="utf-8") as handle:
+                handle.write("%s NEW %s\n" % (now_iso, description))
+        except OSError:
+            pass
+        if config.get("sms_enabled") and re.fullmatch(r"\+[1-9]\d{6,14}", number or ""):
+            try:
+                result = subprocess.run(["/bin/bash", os.path.join(root_dir, "piscripts", "smsend"), number, "New device on network: " + description],
+                                        capture_output=True, text=True, timeout=45)
+                sms_results.append({"ip": device["ip"], "ok": result.returncode == 0})
+            except (subprocess.TimeoutExpired, OSError):
+                sms_results.append({"ip": device["ip"], "ok": False})
+try:
+    save_json(known_path, known)
+except OSError:
+    pass
+
+recent_alerts = []
+try:
+    with open(alerts_path, encoding="utf-8") as handle:
+        recent_alerts = [line.strip() for line in handle.readlines()[-10:]]
+except OSError:
+    pass
+
 print(json.dumps({
+    "new_devices": new_devices,
+    "sms_results": sms_results,
+    "recent_alerts": recent_alerts,
+    "config": {"sms_number": config.get("sms_number", ""), "sms_enabled": bool(config.get("sms_enabled"))},
     "scanned_at": datetime.now(timezone.utc).isoformat(),
     "source": os.environ.get("SCAN_SOURCE", "arp"),
     "oui_database": database_files[0] if database_files else "none",
