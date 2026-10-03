@@ -24,28 +24,8 @@ default_route=$(ip route show default 2>/dev/null | awk 'NR == 1 { print $3 "|" 
 
 phone_neigh=$(adb shell ip neigh 2>/dev/null | tr -d '\r')
 phone_ifconfig=$(adb shell ifconfig 2>/dev/null | tr -d '\r')
-modem_output=""
-modem_status="unavailable"
-timeout_command=""
-if command -v timeout >/dev/null 2>&1; then
-    timeout_command=$(command -v timeout)
-elif command -v busybox >/dev/null 2>&1; then
-    timeout_command="busybox timeout"
-fi
-if command -v telnet >/dev/null 2>&1 && [ -n "$timeout_command" ]; then
-    modem_commands='arp -n
-ifconfig eth0
-exit
-'
-    modem_output=$(printf '%s' "$modem_commands" | $timeout_command 8 telnet 10.0.0.1 8888 2>/dev/null | tr -d '\r')
-    [ -n "$modem_output" ] && modem_status="connected"
-elif ! command -v telnet >/dev/null 2>&1; then
-    modem_status="telnet unavailable"
-else
-    modem_status="timeout unavailable"
-fi
 
-SCAN_DATA="$scan_data" SCAN_SOURCE="${scan_source:-none}" USB0_MAC="$usb0_mac" USB0_IP="$usb0_ip" USB0_PEER="$usb0_peer" ETH0_MAC="$eth0_mac" ETH0_IP="$eth0_ip" ETH0_GATEWAY="$eth0_gateway" DEFAULT_ROUTE="$default_route" PHONE_NEIGH="$phone_neigh" PHONE_IFCONFIG="$phone_ifconfig" MODEM_OUTPUT="$modem_output" MODEM_STATUS="$modem_status" python3 - <<'PY'
+SCAN_DATA="$scan_data" SCAN_SOURCE="${scan_source:-none}" USB0_MAC="$usb0_mac" USB0_IP="$usb0_ip" USB0_PEER="$usb0_peer" ETH0_MAC="$eth0_mac" ETH0_IP="$eth0_ip" ETH0_GATEWAY="$eth0_gateway" DEFAULT_ROUTE="$default_route" PHONE_NEIGH="$phone_neigh" PHONE_IFCONFIG="$phone_ifconfig" python3 - <<'PY'
 import json
 import os
 import re
@@ -125,6 +105,42 @@ def parse_modem_neighbors(text):
             neighbors.append({"ip": match.group(1), "mac": match.group(2).upper(), "interface": match.group(3)})
     return neighbors
 
+def read_modem(host="10.0.0.1", port=8888):
+    import socket
+    import time
+    try:
+        connection = socket.create_connection((host, port), timeout=4)
+    except OSError as error:
+        return "", "unreachable (%s)" % type(error).__name__
+    chunks = []
+    try:
+        connection.settimeout(1.5)
+        for command in (b"arp -n\n", b"ifconfig eth0\n", b"exit\n"):
+            try:
+                connection.sendall(command)
+            except OSError:
+                break
+            deadline = time.time() + 2
+            while time.time() < deadline:
+                try:
+                    data = connection.recv(4096)
+                except socket.timeout:
+                    break
+                except OSError:
+                    data = b""
+                if not data:
+                    break
+                chunks.append(data)
+    finally:
+        connection.close()
+    raw = re.sub(rb"\xff[\xfb-\xfe].|\xff.", b"", b"".join(chunks))
+    text = raw.decode("latin-1").replace("\r", "")
+    return text, ("connected" if text.strip() else "no data")
+
+modem_text, modem_status = read_modem()
+os.environ["MODEM_OUTPUT"] = modem_text
+os.environ["MODEM_STATUS"] = modem_status
+
 phone_interfaces = parse_phone_interfaces(os.environ.get("PHONE_IFCONFIG", ""))
 modem_interfaces = parse_legacy_interfaces(os.environ.get("MODEM_OUTPUT", ""))
 modem_neighbors = parse_modem_neighbors(os.environ.get("MODEM_OUTPUT", ""))
@@ -167,7 +183,10 @@ for row in os.environ.get("SCAN_DATA", "").splitlines():
         continue
     seen.add(mac)
     oui = mac.replace(":", "")[:6]
-    vendor = vendor.strip() or vendors.get(oui, "Unknown vendor")
+    vendor = vendor.strip()
+    if vendor.startswith("(Unknown") or vendor.lower() == "unknown":
+        vendor = ""
+    vendor = vendor or vendors.get(oui, "Unknown vendor")
     role = "Pi 5 / static Ethernet" if ip == "10.0.0.50" else ""
     devices.append({"ip": ip, "mac": mac, "oui": oui, "vendor": vendor, "device_type": device_type(vendor), "role": role})
 
@@ -266,7 +285,10 @@ new_devices = []
 for device in devices:
     first_digit = int(device["mac"][1], 16)
     device["randomized_mac"] = bool(first_digit & 0x2)
-    device["hostname"] = dhcp_names.get(device["mac"], "")
+    found = name_cache.get(device["mac"], {})
+    device["hostname"] = dhcp_names.get(device["mac"]) or found.get("hostname", "")
+    device["hostname_source"] = "DHCP" if dhcp_names.get(device["mac"]) else found.get("source", "")
+    device["workgroup"] = found.get("workgroup", "")
     label = labels.get(device["mac"], "")
     device["label"] = label
     if device["randomized_mac"] and device["vendor"] == "Unknown vendor":
