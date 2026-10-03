@@ -209,7 +209,7 @@ function render(data) {
   renderLeases(devices, (data.eth0 || {}).gateway || "10.0.0.1");
   const modemEth = renderModem(data);
   devicesElement.innerHTML = devices.map(device =>
-    `<article class="device"><strong>${escapeHtml(device.ip)}${device.role ? " // " + escapeHtml(device.role) : ""}${device.new ? " // NEW" : ""}</strong><span>${escapeHtml(device.vendor)} // ${escapeHtml(device.device_type || "Unknown device")}</span><span>OUI ${escapeHtml(device.oui || "------")} // ${escapeHtml(device.mac)}${device.randomized_mac ? " // RANDOMIZED MAC" : ""}</span>${device.hostname ? `<span>HOST ${escapeHtml(device.hostname)}</span>` : ""}<span>FIRST SEEN ${device.first_seen ? escapeHtml(new Date(device.first_seen).toLocaleString()) : "--"}</span></article>`
+    `<article class="device"><strong>${escapeHtml(device.label || device.ip)}${device.label ? " // " + escapeHtml(device.ip) : ""}${device.role ? " // " + escapeHtml(device.role) : ""}${device.new ? " // NEW" : ""}${device.unnamed ? " // UNNAMED" : ""}</strong><span>${escapeHtml(device.vendor)} // ${escapeHtml(device.device_type || "Unknown device")}</span><span>OUI ${escapeHtml(device.oui || "------")} // ${escapeHtml(device.mac)}${device.randomized_mac ? " // RANDOMIZED MAC" : ""}</span><span><button type="button" class="name-btn" data-mac="${escapeHtml(device.mac)}" data-label="${escapeHtml(device.label || "")}">[ NAME ]</button></span>${device.hostname ? `<span>HOST ${escapeHtml(device.hostname)}</span>` : ""}<span>FIRST SEEN ${device.first_seen ? escapeHtml(new Date(device.first_seen).toLocaleString()) : "--"}</span></article>`
   ).join("");
   document.getElementById("empty").hidden = devices.length > 0;
   const config = data.config || {};
@@ -326,6 +326,15 @@ document.getElementById("deep").addEventListener("click", async () => {
   } catch (error) {
     status.textContent = "DEEP SCAN FAILED: " + error.message;
   }
+});
+
+devicesElement.addEventListener("click", async event => {
+  const button = event.target.closest(".name-btn");
+  if (!button) return;
+  const label = prompt("Name for " + button.dataset.mac + " (e.g. My PC, My phone; empty clears):", button.dataset.label);
+  if (label === null) return;
+  const response = await fetch("/cgi-bin/oui-label.cgi", { method: "POST", body: new URLSearchParams({ mac: button.dataset.mac, label }) });
+  if (response.ok) scan(); else alert((await response.text()).trim());
 });
 
 document.getElementById("refresh").addEventListener("click", scan);

@@ -208,6 +208,7 @@ for lease_file in ("/var/lib/misc/dnsmasq.leases", "/var/lib/dhcp/dhcpd.leases")
 
 now_iso = datetime.now(timezone.utc).isoformat()
 config = load_json(config_path, {})
+labels = load_json(os.path.join(data_dir, "oui-labels.json"), {})
 known = load_json(known_path, None)
 baseline = known is None
 known = known or {}
@@ -216,24 +217,31 @@ for device in devices:
     first_digit = int(device["mac"][1], 16)
     device["randomized_mac"] = bool(first_digit & 0x2)
     device["hostname"] = dhcp_names.get(device["mac"], "")
+    label = labels.get(device["mac"], "")
+    device["label"] = label
+    if device["randomized_mac"] and device["vendor"] == "Unknown vendor":
+        device["vendor"] = "Private/randomized MAC"
     entry = known.get(device["mac"])
     if entry is None:
-        entry = {"first_seen": now_iso, "ip": device["ip"], "vendor": device["vendor"]}
+        entry = {"first_seen": now_iso, "ip": device["ip"], "vendor": device["vendor"], "alerted": baseline}
         known[device["mac"]] = entry
-        if not baseline:
-            new_devices.append(device)
+    # Only unnamed devices alert, once each; naming a device marks it as yours.
+    if not label and not entry.get("alerted"):
+        entry["alerted"] = True
+        new_devices.append(device)
     entry["last_seen"] = now_iso
     entry["ip"] = device["ip"]
     device["first_seen"] = entry["first_seen"]
     device["last_seen"] = entry["last_seen"]
     device["new"] = device in new_devices
+    device["unnamed"] = not label
 
 sms_results = []
 if new_devices:
     number = config.get("sms_number", "")
     for device in new_devices:
         description = "%s %s %s %s%s" % (
-            device["ip"], device["mac"], device["vendor"], device["device_type"],
+            device["ip"], device["mac"], device["label"] or device["vendor"], device["device_type"],
             " (randomized MAC)" if device["randomized_mac"] else "")
         description = re.sub(r"[^\x20-\x7e]", "?", description)
         try:
@@ -243,7 +251,7 @@ if new_devices:
             pass
         if config.get("sms_enabled") and re.fullmatch(r"\+[1-9]\d{6,14}", number or ""):
             try:
-                result = subprocess.run(["/bin/bash", os.path.join(root_dir, "piscripts", "smsend"), number, "New device on network: " + description],
+                result = subprocess.run(["/bin/bash", os.path.join(root_dir, "piscripts", "smsend"), number, "New unknown device on network: " + description],
                                         capture_output=True, text=True, timeout=45)
                 sms_results.append({"ip": device["ip"], "ok": result.returncode == 0})
             except (subprocess.TimeoutExpired, OSError):
