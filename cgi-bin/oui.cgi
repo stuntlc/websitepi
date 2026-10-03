@@ -209,6 +209,56 @@ for lease_file in ("/var/lib/misc/dnsmasq.leases", "/var/lib/dhcp/dhcpd.leases")
 now_iso = datetime.now(timezone.utc).isoformat()
 config = load_json(config_path, {})
 labels = load_json(os.path.join(data_dir, "oui-labels.json"), {})
+
+import shutil
+from concurrent.futures import ThreadPoolExecutor
+
+names_path = os.path.join(data_dir, "oui-names.json")
+name_cache = load_json(names_path, {})
+
+def run_tool(command):
+    try:
+        return subprocess.run(command, capture_output=True, text=True, timeout=4).stdout
+    except (OSError, subprocess.TimeoutExpired):
+        return ""
+
+def lookup_names(ip):
+    result = {"hostname": "", "workgroup": "", "source": ""}
+    if shutil.which("nmblookup"):
+        for line in run_tool(["nmblookup", "-A", ip]).splitlines():
+            match = re.match(r"^\s+(\S+)\s+<00>\s+-\s+(<GROUP>\s+)?", line)
+            if match:
+                if match.group(2):
+                    result["workgroup"] = result["workgroup"] or match.group(1)
+                elif not result["hostname"]:
+                    result["hostname"], result["source"] = match.group(1), "NetBIOS"
+    if not result["hostname"] and shutil.which("avahi-resolve-address"):
+        fields = run_tool(["avahi-resolve-address", ip]).split()
+        if len(fields) >= 2:
+            result["hostname"], result["source"] = fields[1].rstrip("."), "mDNS"
+    if not result["hostname"]:
+        fields = run_tool(["getent", "hosts", ip]).split()
+        if len(fields) >= 2:
+            result["hostname"], result["source"] = fields[1], "DNS"
+    return result
+
+# Cache per MAC: refresh found names hourly, retry misses every 10 minutes.
+stale = []
+now_ts = datetime.now(timezone.utc).timestamp()
+for device in devices:
+    cached = name_cache.get(device["mac"])
+    max_age = 3600 if cached and cached.get("hostname") else 600
+    if not cached or now_ts - cached.get("ts", 0) > max_age or cached.get("ip") != device["ip"]:
+        stale.append(device)
+with ThreadPoolExecutor(max_workers=8) as pool:
+    for device, found in zip(stale[:16], pool.map(lookup_names, [d["ip"] for d in stale[:16]])):
+        found.update({"ts": now_ts, "ip": device["ip"]})
+        name_cache[device["mac"]] = found
+if stale:
+    try:
+        save_json(names_path, name_cache)
+    except OSError:
+        pass
 known = load_json(known_path, None)
 baseline = known is None
 known = known or {}

@@ -209,7 +209,7 @@ function render(data) {
   renderLeases(devices, (data.eth0 || {}).gateway || "10.0.0.1");
   const modemEth = renderModem(data);
   devicesElement.innerHTML = devices.map(device =>
-    `<article class="device"><strong>${escapeHtml(device.label || device.ip)}${device.label ? " // " + escapeHtml(device.ip) : ""}${device.role ? " // " + escapeHtml(device.role) : ""}${device.new ? " // NEW" : ""}${device.unnamed ? " // UNNAMED" : ""}</strong><span>${escapeHtml(device.vendor)} // ${escapeHtml(device.device_type || "Unknown device")}</span><span>OUI ${escapeHtml(device.oui || "------")} // ${escapeHtml(device.mac)}${device.randomized_mac ? " // RANDOMIZED MAC" : ""}</span><span><button type="button" class="name-btn" data-mac="${escapeHtml(device.mac)}" data-label="${escapeHtml(device.label || "")}">[ NAME ]</button></span>${device.hostname ? `<span>HOST ${escapeHtml(device.hostname)}</span>` : ""}<span>FIRST SEEN ${device.first_seen ? escapeHtml(new Date(device.first_seen).toLocaleString()) : "--"}</span></article>`
+    `<article class="device"><strong>${escapeHtml(device.label || device.ip)}${device.label ? " // " + escapeHtml(device.ip) : ""}${device.role ? " // " + escapeHtml(device.role) : ""}${device.new ? " // NEW" : ""}${device.unnamed ? " // UNNAMED" : ""}</strong><span>${escapeHtml(device.vendor)} // ${escapeHtml(device.device_type || "Unknown device")}</span><span>OUI ${escapeHtml(device.oui || "------")} // ${escapeHtml(device.mac)}${device.randomized_mac ? " // RANDOMIZED MAC" : ""}</span><span><button type="button" class="name-btn" data-mac="${escapeHtml(device.mac)}" data-label="${escapeHtml(device.label || "")}">[ NAME ]</button></span>${device.hostname ? `<span>HOST ${escapeHtml(device.hostname)}${device.hostname_source ? " (" + escapeHtml(device.hostname_source) + ")" : ""}${device.workgroup ? " // WORKGROUP " + escapeHtml(device.workgroup) : ""}</span>` : ""}<span>FIRST SEEN ${device.first_seen ? escapeHtml(new Date(device.first_seen).toLocaleString()) : "--"}</span></article>`
   ).join("");
   document.getElementById("empty").hidden = devices.length > 0;
   const config = data.config || {};
@@ -296,7 +296,7 @@ document.getElementById("report-email-send").addEventListener("click", async () 
   const devices = (window.networkData || {}).devices || [];
   if (!devices.length) { status.textContent = "No scan data yet."; return; }
   const message = `Network ${devices.length} hosts\n\n` + devices.map(device =>
-    `${device.ip}\t${device.mac}\t${device.vendor || "Unknown"} [${device.device_type || "?"}]${device.hostname ? " host=" + device.hostname : ""}${device.randomized_mac ? " randomized-MAC" : ""}${device.new ? " NEW" : ""}`
+    `${device.ip}\t${device.mac}\t${device.vendor || "Unknown"} [${device.device_type || "?"}]${device.hostname ? " host=" + device.hostname : ""}${device.workgroup ? " wg=" + device.workgroup : ""}${device.randomized_mac ? " randomized-MAC" : ""}${device.new ? " NEW" : ""}`
   ).join("\n");
   status.textContent = "SENDING...";
   try {
