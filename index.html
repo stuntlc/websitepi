@@ -483,17 +483,18 @@ body::before { background: rgba(0, 0, 0, 0.82); }
 #output, #outputPanel pre, .phonePhotoLabel { color: #00ff66; font-weight: 700; }
 #gpsPanel { display: none; padding: 16px; color: #fff; }
 #gpsPanel.active { display: block; }
-#gpsMap { height: 60vh; min-height: 360px; border: 1px solid #00a83f; margin-bottom: 14px; }
-#gpsStatus { padding: 8px 0; font-weight: 700; }
+#gpsMap { height: 70vh; min-height: 420px; border: 1px solid #00a83f; }
+#gpsStatus { padding: 8px 0; font-weight: 700; text-align: center; }
 #gpsStatus.error { color: #ff7b83; }
-#gpsInfo { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
-#gpsInfo .gpsBox { background: rgba(0,0,0,.9); border: 1px solid #00a83f; padding: 12px; }
-#gpsInfo h3 { margin: 0 0 8px; color: #00ff66; font-size: 14px; }
-#gpsInfo .row { display: flex; justify-content: space-between; padding: 2px 0; }
-#gpsInfo table { width: 100%; border-collapse: collapse; }
-#gpsInfo td, #gpsInfo th { text-align: right; padding: 2px 4px; }
-#gpsInfo th:first-child, #gpsInfo td:first-child { text-align: left; }
-#gpsInfo .used { color: #00ff66; }
+#gpsLayout { display: grid; grid-template-columns: minmax(220px, 1fr) minmax(0, 2.2fr) minmax(220px, 1fr); gap: 14px; align-items: start; }
+@media (max-width: 900px) { #gpsLayout { grid-template-columns: 1fr; } #gpsMap { order: -1; } }
+#gpsLayout .gpsBox { background: rgba(0,0,0,.9); border: 1px solid #00a83f; padding: 12px; max-height: 70vh; overflow-y: auto; }
+#gpsLayout h3 { margin: 0 0 8px; color: #00ff66; font-size: 14px; }
+#gpsLayout .row { display: flex; justify-content: space-between; gap: 10px; padding: 2px 0; }
+#gpsLayout table { width: 100%; border-collapse: collapse; }
+#gpsLayout td, #gpsLayout th { text-align: right; padding: 2px 4px; }
+#gpsLayout th:first-child, #gpsLayout td:first-child { text-align: left; }
+#gpsLayout .used { color: #00ff66; }
 </style>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 </head>
@@ -538,8 +539,11 @@ body::before { background: rgba(0, 0, 0, 0.82); }
 
   <section id="gpsPanel">
     <div id="gpsStatus">LOADING GPS...</div>
-    <div id="gpsMap"></div>
-    <div id="gpsInfo"></div>
+    <div id="gpsLayout">
+      <div class="gpsBox" id="gpsLeft"></div>
+      <div id="gpsMap"></div>
+      <div class="gpsBox" id="gpsRight"></div>
+    </div>
   </section>
 
   <div class="media-container" id="media-container">
@@ -793,12 +797,12 @@ async function updateGps() {
       ["HDOP/VDOP/PDOP", f(d.hdop, 2) + " / " + f(d.vdop, 2) + " / " + f(d.pdop, 2)], ["GPS time", d.time || "--"]];
     const sats = d.satellites.slice().sort((a, b) => (b.ss || 0) - (a.ss || 0)).map(s =>
       '<tr class="' + (s.used ? "used" : "") + '"><td>' + s.PRN + "</td><td>" + f(s.el, 0) + "</td><td>" + f(s.az, 0) + "</td><td>" + f(s.ss, 0) + "</td><td>" + (s.used ? "Y" : "-") + "</td></tr>").join("");
-    document.getElementById("gpsInfo").innerHTML =
-      '<div class="gpsBox"><h3>FIX</h3>' + rows.map(r => '<div class="row"><span>' + r[0] + "</span><span>" + r[1] + "</span></div>").join("") + "</div>" +
-      '<div class="gpsBox"><h3>SATELLITES</h3><table><tr><th>PRN</th><th>EL</th><th>AZ</th><th>SNR</th><th>USED</th></tr>' + sats + "</table></div>";
-    if (d.lat !== null && d.lon !== null) {
+    document.getElementById("gpsLeft").innerHTML = "<h3>FIX</h3>" + rows.map(r => '<div class="row"><span>' + r[0] + "</span><span>" + r[1] + "</span></div>").join("");
+    document.getElementById("gpsRight").innerHTML = '<h3>SATELLITES</h3><table><tr><th>PRN</th><th>EL</th><th>AZ</th><th>SNR</th><th>USED</th></tr>' + sats + "</table>";
+    const valid = d.lat !== null && d.lon !== null && d.mode >= 2 && !(d.eph < 0);
+    if (valid) {
       const p = [d.lat, d.lon];
-      if (!gpsCentered) { gpsMarker.addTo(gpsMap); gpsCircle.addTo(gpsMap); gpsMap.setView(p, 18); gpsCentered = true; }
+      if (!gpsCentered) { gpsMarker.addTo(gpsMap); gpsCircle.addTo(gpsMap); gpsCentered = true; gpsMap.setView(p, 19); }
       gpsMarker.setLatLng(p);
       gpsCircle.setLatLng(p).setRadius(d.eph || 0);
       gpsTrail.addLatLng(p);
