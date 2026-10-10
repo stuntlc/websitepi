@@ -1,0 +1,13 @@
+[Unit]
+Description=Start gpsd when the GPS receiver is on /dev/ttyACM0
+ConditionPathExists=/dev/ttyACM0
+After=dev-ttyACM0.device
+Wants=dev-ttyACM0.device
+
+[Service]
+Type=simple
+ExecStart=/usr/sbin/gpsd -N -n /dev/ttyACM0
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

@@ -15,7 +15,11 @@ h1 { margin: 0; color: var(--green); letter-spacing: 3px; }
 a, button { border: 1px solid var(--line); background: #0b2517; color: var(--ink); padding: 9px 13px; font: inherit; text-decoration: none; cursor: pointer; }
 #status { padding: 14px 0; }
 #status.error { color: var(--red); }
-#map { height: 480px; border: 1px solid var(--line); margin-bottom: 18px; }
+#map { height: 70vh; min-height: 420px; border: 1px solid var(--line); }
+#status { text-align: center; }
+#layout { display: grid; grid-template-columns: minmax(220px, 1fr) minmax(0, 2.2fr) minmax(220px, 1fr); gap: 14px; align-items: start; }
+@media (max-width: 900px) { #layout { grid-template-columns: 1fr; } #map { order: -1; } }
+.panel { max-height: 70vh; overflow-y: auto; }
 .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px; }
 .panel { background: var(--panel); border: 1px solid var(--line); padding: 16px; }
 .panel h2 { margin: 0 0 12px; color: var(--green); font-size: 14px; letter-spacing: 1px; }
@@ -33,9 +37,9 @@ th:first-child, td:first-child { text-align: left; }
     <div><a href="index.html">[ CONTROL ]</a> <button id="follow" type="button">[ FOLLOW: ON ]</button></div>
   </header>
   <div id="status">CONNECTING...</div>
-  <div id="map"></div>
-  <div class="grid">
+  <div id="layout">
     <section class="panel"><h2>FIX</h2><div id="fix"></div></section>
+    <div id="map"></div>
     <section class="panel"><h2>SATELLITES</h2>
       <table><thead><tr><th>PRN</th><th>EL</th><th>AZ</th><th>SNR</th><th>USED</th></tr></thead><tbody id="sats"></tbody></table>
     </section>
@@ -73,9 +77,10 @@ async function update() {
     document.getElementById("fix").innerHTML = rows.map(r => '<div class="row"><span>' + r[0] + "</span><span>" + r[1] + "</span></div>").join("");
     document.getElementById("sats").innerHTML = d.satellites.slice().sort((a, b) => (b.ss || 0) - (a.ss || 0)).map(s =>
       '<tr class="' + (s.used ? "used" : "") + '"><td>' + s.PRN + "</td><td>" + fmt(s.el, 0) + "</td><td>" + fmt(s.az, 0) + "</td><td>" + fmt(s.ss, 0) + "</td><td>" + (s.used ? "Y" : "-") + "</td></tr>").join("");
-    if (d.lat !== null && d.lon !== null) {
+    const valid = d.lat !== null && d.lon !== null && d.mode >= 2 && !(d.eph < 0);
+    if (valid) {
       const p = [d.lat, d.lon];
-      if (!placed) { marker.addTo(map); accuracy.addTo(map); map.setView(p, 18); placed = true; }
+      if (!placed) { marker.addTo(map); accuracy.addTo(map); map.setView(p, 19); placed = true; }
       marker.setLatLng(p); accuracy.setLatLng(p).setRadius(d.eph || 0);
       trail.addLatLng(p);
       if (follow) map.panTo(p);
