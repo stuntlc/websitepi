@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GPS | Skunk Works</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+:root { --ink: #fff; --green: #00ff66; --line: #00a83f; --panel: rgba(0,0,0,.94); --red: #ff7b83; }
+* { box-sizing: border-box; }
+body { margin: 0; min-height: 100vh; color: var(--ink); background: #000; font-family: "Courier New", monospace; font-size: 14px; font-weight: 600; }
+main { max-width: 1180px; margin: 0 auto; padding: 28px 20px 44px; }
+header { display: flex; justify-content: space-between; align-items: end; border-bottom: 1px solid var(--line); padding-bottom: 18px; }
+h1 { margin: 0; color: var(--green); letter-spacing: 3px; }
+a, button { border: 1px solid var(--line); background: #0b2517; color: var(--ink); padding: 9px 13px; font: inherit; text-decoration: none; cursor: pointer; }
+#status { padding: 14px 0; }
+#status.error { color: var(--red); }
+#map { height: 480px; border: 1px solid var(--line); margin-bottom: 18px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px; }
+.panel { background: var(--panel); border: 1px solid var(--line); padding: 16px; }
+.panel h2 { margin: 0 0 12px; color: var(--green); font-size: 14px; letter-spacing: 1px; }
+.row { display: flex; justify-content: space-between; padding: 3px 0; }
+table { width: 100%; border-collapse: collapse; }
+td, th { text-align: right; padding: 2px 4px; }
+th:first-child, td:first-child { text-align: left; }
+.used { color: var(--green); }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div><h1>GPS TRACKER</h1></div>
+    <div><a href="index.html">[ CONTROL ]</a> <button id="follow" type="button">[ FOLLOW: ON ]</button></div>
+  </header>
+  <div id="status">CONNECTING...</div>
+  <div id="map"></div>
+  <div class="grid">
+    <section class="panel"><h2>FIX</h2><div id="fix"></div></section>
+    <section class="panel"><h2>SATELLITES</h2>
+      <table><thead><tr><th>PRN</th><th>EL</th><th>AZ</th><th>SNR</th><th>USED</th></tr></thead><tbody id="sats"></tbody></table>
+    </section>
+  </div>
+</main>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const map = L.map("map").setView([0, 0], 2);
+const satellite = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { maxZoom: 19, attribution: "Esri World Imagery" });
+const labels = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}", { maxZoom: 19 });
+const street = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: "&copy; OpenStreetMap" });
+satellite.addTo(map);
+L.control.layers({ "Satellite (Esri)": satellite, "OpenStreetMap": street }, { "Labels": labels }).addTo(map);
+
+const marker = L.circleMarker([0, 0], { radius: 8, color: "#00ff66", fillOpacity: .6 });
+const accuracy = L.circle([0, 0], { radius: 0, color: "#00ff66", weight: 1 });
+const trail = L.polyline([], { color: "#ffe066" }).addTo(map);
+let follow = true, placed = false;
+document.getElementById("follow").onclick = (e) => { follow = !follow; e.target.textContent = "[ FOLLOW: " + (follow ? "ON" : "OFF") + " ]"; };
+
+const fmt = (v, d = 1, u = "") => (v === null || v === undefined ? "--" : Number(v).toFixed(d) + u);
+const MODES = ["UNKNOWN", "NO FIX", "2D FIX", "3D FIX"];
+
+async function update() {
+  const status = document.getElementById("status");
+  try {
+    const d = await (await fetch("/cgi-bin/gps.cgi?t=" + Date.now(), { cache: "no-store" })).json();
+    if (!d.ok) throw new Error(d.error);
+    status.className = "";
+    status.textContent = MODES[d.mode] + " // " + d.sats_used + "/" + d.sats_seen + " SATS USED";
+    const rows = [["Latitude", fmt(d.lat, 6)], ["Longitude", fmt(d.lon, 6)], ["Altitude", fmt(d.alt, 1, " m")],
+      ["Speed", fmt(d.speed_kmh, 1, " km/h")], ["Heading", fmt(d.track, 0, "\u00b0")], ["Climb", fmt(d.climb, 1, " m/s")],
+      ["Error (h/v)", fmt(d.eph, 1) + " / " + fmt(d.epv, 1) + " m"], ["HDOP/VDOP/PDOP", fmt(d.hdop, 2) + " / " + fmt(d.vdop, 2) + " / " + fmt(d.pdop, 2)],
+      ["GPS time", d.time || "--"]];
+    document.getElementById("fix").innerHTML = rows.map(r => '<div class="row"><span>' + r[0] + "</span><span>" + r[1] + "</span></div>").join("");
+    document.getElementById("sats").innerHTML = d.satellites.slice().sort((a, b) => (b.ss || 0) - (a.ss || 0)).map(s =>
+      '<tr class="' + (s.used ? "used" : "") + '"><td>' + s.PRN + "</td><td>" + fmt(s.el, 0) + "</td><td>" + fmt(s.az, 0) + "</td><td>" + fmt(s.ss, 0) + "</td><td>" + (s.used ? "Y" : "-") + "</td></tr>").join("");
+    if (d.lat !== null && d.lon !== null) {
+      const p = [d.lat, d.lon];
+      if (!placed) { marker.addTo(map); accuracy.addTo(map); map.setView(p, 18); placed = true; }
+      marker.setLatLng(p); accuracy.setLatLng(p).setRadius(d.eph || 0);
+      trail.addLatLng(p);
+      if (follow) map.panTo(p);
+    }
+  } catch (err) {
+    status.className = "error";
+    status.textContent = "ERROR: " + err.message;
+  }
+}
+update();
+setInterval(update, 2000);
+</script>
+</body>
+</html>

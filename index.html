@@ -481,7 +481,21 @@ body::before { background: rgba(0, 0, 0, 0.82); }
 .topbar, #outputPanel, #output, button, a { background-color: #000; }
 .topbar, #outputPanel { border-color: rgba(0, 255, 0, 0.7); }
 #output, #outputPanel pre, .phonePhotoLabel { color: #00ff66; font-weight: 700; }
+#gpsPanel { display: none; padding: 16px; color: #fff; }
+#gpsPanel.active { display: block; }
+#gpsMap { height: 60vh; min-height: 360px; border: 1px solid #00a83f; margin-bottom: 14px; }
+#gpsStatus { padding: 8px 0; font-weight: 700; }
+#gpsStatus.error { color: #ff7b83; }
+#gpsInfo { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
+#gpsInfo .gpsBox { background: rgba(0,0,0,.9); border: 1px solid #00a83f; padding: 12px; }
+#gpsInfo h3 { margin: 0 0 8px; color: #00ff66; font-size: 14px; }
+#gpsInfo .row { display: flex; justify-content: space-between; padding: 2px 0; }
+#gpsInfo table { width: 100%; border-collapse: collapse; }
+#gpsInfo td, #gpsInfo th { text-align: right; padding: 2px 4px; }
+#gpsInfo th:first-child, #gpsInfo td:first-child { text-align: left; }
+#gpsInfo .used { color: #00ff66; }
 </style>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 </head>
 <body>
 
@@ -513,6 +527,7 @@ body::before { background: rgba(0, 0, 0, 0.82); }
     <button onclick="runAction('meteo.cgi')">🌦Weather</button>
     <button onclick="runAction('cleanup.sh')">🧹Clean</button>
     <button onclick="capturePhoneCameras()">📱Camera</button>
+    <button onclick="showGps()">🛰Sat</button>
   </div>
 </div>
 
@@ -520,6 +535,12 @@ body::before { background: rgba(0, 0, 0, 0.82); }
   <div id="outputPanel">
     <pre id="outputContent"></pre>
   </div>
+
+  <section id="gpsPanel">
+    <div id="gpsStatus">LOADING GPS...</div>
+    <div id="gpsMap"></div>
+    <div id="gpsInfo"></div>
+  </section>
 
   <div class="media-container" id="media-container">
     <div class="title-side">
@@ -673,6 +694,8 @@ function runAction(script) {
       if (script === "netcheck.sh" || script === "meteo.cgi") {
         // Hide media and show full output panel for text-based results
         document.getElementById("media-container").style.display = "none";
+        document.getElementById("gpsPanel").classList.remove("active");
+        stopGps();
         document.getElementById("outputPanel").classList.add("active");
         // Clean output: remove HTML tags, scripts, CSS, and trim whitespace
         let cleanedOutput = t.replace(/<style[^>]*>.*?<\/style>/gi, '')  // Remove style tags
@@ -703,7 +726,87 @@ function runAction(script) {
 
 function closeOutputPanel() {
   document.getElementById("outputPanel").classList.remove("active");
+  document.getElementById("gpsPanel").classList.remove("active");
+  stopGps();
   document.getElementById("media-container").style.display = "flex";
+}
+
+let gpsMap = null, gpsMarker = null, gpsCircle = null, gpsTrail = null, gpsTimer = null, gpsCentered = false;
+
+function loadLeaflet() {
+  if (window.L) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    const s = document.createElement("script");
+    s.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
+    s.onload = resolve;
+    s.onerror = () => reject(new Error("Could not load map library (internet needed)"));
+    document.head.appendChild(s);
+  });
+}
+
+function stopGps() {
+  if (gpsTimer) { clearInterval(gpsTimer); gpsTimer = null; }
+}
+
+async function showGps() {
+  document.getElementById("outputPanel").classList.remove("active");
+  document.getElementById("media-container").style.display = "none";
+  document.getElementById("phoneCapture").style.display = "none";
+  const panel = document.getElementById("gpsPanel");
+  if (panel.classList.contains("active")) { closeOutputPanel(); return; }
+  panel.classList.add("active");
+  try {
+    await loadLeaflet();
+  } catch (err) {
+    document.getElementById("gpsStatus").className = "error";
+    document.getElementById("gpsStatus").textContent = "ERROR: " + err.message;
+    return;
+  }
+  if (!gpsMap) {
+    gpsMap = L.map("gpsMap").setView([0, 0], 2);
+    const sat = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { maxZoom: 19, attribution: "Esri World Imagery" });
+    const labels = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}", { maxZoom: 19 });
+    const osm = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: "&copy; OpenStreetMap" });
+    sat.addTo(gpsMap);
+    L.control.layers({ "Satellite": sat, "OpenStreetMap": osm }, { "Labels": labels }).addTo(gpsMap);
+    gpsMarker = L.circleMarker([0, 0], { radius: 8, color: "#00ff66", fillOpacity: .6 });
+    gpsCircle = L.circle([0, 0], { radius: 0, color: "#00ff66", weight: 1 });
+    gpsTrail = L.polyline([], { color: "#ffe066" }).addTo(gpsMap);
+  }
+  setTimeout(() => gpsMap.invalidateSize(), 50);
+  updateGps();
+  stopGps();
+  gpsTimer = setInterval(updateGps, 2000);
+}
+
+async function updateGps() {
+  const status = document.getElementById("gpsStatus");
+  const f = (v, d = 1, u = "") => (v === null || v === undefined ? "--" : Number(v).toFixed(d) + u);
+  try {
+    const d = await (await fetch("/cgi-bin/gps.cgi?t=" + Date.now(), { cache: "no-store" })).json();
+    if (!d.ok) throw new Error(d.error);
+    status.className = "";
+    status.textContent = ["UNKNOWN", "NO FIX", "2D FIX", "3D FIX"][d.mode] + " // " + d.sats_used + "/" + d.sats_seen + " SATS USED";
+    const rows = [["Latitude", f(d.lat, 6)], ["Longitude", f(d.lon, 6)], ["Altitude", f(d.alt, 1, " m")],
+      ["Speed", f(d.speed_kmh, 1, " km/h")], ["Heading", f(d.track, 0, "\u00b0")], ["Climb", f(d.climb, 1, " m/s")],
+      ["Error h/v", f(d.eph, 1) + " / " + f(d.epv, 1) + " m"],
+      ["HDOP/VDOP/PDOP", f(d.hdop, 2) + " / " + f(d.vdop, 2) + " / " + f(d.pdop, 2)], ["GPS time", d.time || "--"]];
+    const sats = d.satellites.slice().sort((a, b) => (b.ss || 0) - (a.ss || 0)).map(s =>
+      '<tr class="' + (s.used ? "used" : "") + '"><td>' + s.PRN + "</td><td>" + f(s.el, 0) + "</td><td>" + f(s.az, 0) + "</td><td>" + f(s.ss, 0) + "</td><td>" + (s.used ? "Y" : "-") + "</td></tr>").join("");
+    document.getElementById("gpsInfo").innerHTML =
+      '<div class="gpsBox"><h3>FIX</h3>' + rows.map(r => '<div class="row"><span>' + r[0] + "</span><span>" + r[1] + "</span></div>").join("") + "</div>" +
+      '<div class="gpsBox"><h3>SATELLITES</h3><table><tr><th>PRN</th><th>EL</th><th>AZ</th><th>SNR</th><th>USED</th></tr>' + sats + "</table></div>";
+    if (d.lat !== null && d.lon !== null) {
+      const p = [d.lat, d.lon];
+      if (!gpsCentered) { gpsMarker.addTo(gpsMap); gpsCircle.addTo(gpsMap); gpsMap.setView(p, 18); gpsCentered = true; }
+      gpsMarker.setLatLng(p);
+      gpsCircle.setLatLng(p).setRadius(d.eph || 0);
+      gpsTrail.addLatLng(p);
+    }
+  } catch (err) {
+    status.className = "error";
+    status.textContent = "ERROR: " + err.message;
+  }
 }
 
 function rotatePhonePhoto(camera, degrees) {
@@ -714,6 +817,8 @@ function rotatePhonePhoto(camera, degrees) {
 function capturePhoneCameras() {
   // Close output panel if it's open
   document.getElementById("outputPanel").classList.remove("active");
+  document.getElementById("gpsPanel").classList.remove("active");
+  stopGps();
   document.getElementById("media-container").style.display = "flex";
   
   const output = document.getElementById("output");
