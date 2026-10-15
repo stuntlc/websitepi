@@ -42,6 +42,10 @@ const dot = (color, r) => ({ path: google.maps.SymbolPath.CIRCLE, scale: r, fill
 
 let map, info, euLayer, worldLayer, heat, mode = null, euLoaded = false, worldReq = 0, heatOn = false;
 
+const EU_BANDS = [null, ["Good", "#50f0e6"], ["Fair", "#50ccaa"], ["Moderate", "#f0e641"], ["Poor", "#ff5050"], ["Very poor", "#960032"], ["Extremely poor", "#7d2181"]];
+const euBand = v => { const n = Math.min(6, Math.max(1, Math.round(Number(v)))); return isNaN(n) ? null : EU_BANDS[n]; };
+let euLevels = {}, euLevelTime = "";
+
 function initMap() {
   map = new google.maps.Map(document.getElementById("map"), {
     center: { lat: 50, lng: 10 }, zoom: 4, mapTypeId: "hybrid", mapTypeControl: true,
@@ -50,18 +54,21 @@ function initMap() {
   info = new google.maps.InfoWindow();
   euLayer = new google.maps.Data();
   worldLayer = new google.maps.Data();
-  euLayer.setStyle(f => ({ icon: dot(f.getProperty("operational") ? "#00ff66" : "#888", 5) }));
+  euLayer.setStyle(f => {
+    const b = euBand(f.getProperty("level"));
+    return { icon: dot(b ? b[1] : "#888", 5) };
+  });
   worldLayer.setStyle(f => ({ icon: dot(aqiColor(f.getProperty("aqi")), 6) }));
   euLayer.addListener("click", e => {
     const p = n => esc(e.feature.getProperty(n));
+    const b = euBand(e.feature.getProperty("level"));
     info.setContent('<div class="iw"><b>' + p("name") + "</b><br>" + p("municipality") + "<br>" + p("station_type") + " / " + p("area_classification") +
-      "<br>" + p("code") + "<br>" + p("organisation") + '<br><a target="_blank" rel="noopener" href="https://airindex.eea.europa.eu/AQI/index.html">EEA index</a></div>');
+      "<br>Air quality: <b>" + (b ? b[0] : "no data") + "</b>" + (euLevelTime ? " (" + esc(euLevelTime) + " UTC)" : "") + "<br>" + p("code") + "</div>");
     info.setPosition(e.latLng); info.open(map);
   });
   worldLayer.addListener("click", e => {
     const p = n => esc(e.feature.getProperty(n));
-    info.setContent('<div class="iw"><b>' + p("city") + "</b><br>AQI: " + p("aqi") + " (" + p("pol") + ")<br>" + p("utime") +
-      '<br><a target="_blank" rel="noopener" href="https://aqicn.org/city/@' + encodeURIComponent(e.feature.getProperty("idx")) + '">details</a></div>');
+    info.setContent('<div class="iw"><b>' + p("city") + "</b><br>AQI: " + p("aqi") + " (" + p("pol") + ")<br>" + p("utime") + "</div>");
     info.setPosition(e.latLng); info.open(map);
   });
 
@@ -100,7 +107,14 @@ async function loadEU() {
   const idx = await (await fetch(EEA + "content/index.json")).json();
   const f = idx.contents.filter(n => n.startsWith("raw_stations.json")).sort().pop();
   const rows = await (await fetch(EEA + "content/" + f)).json();
-  euLayer.addGeoJson({ type: "FeatureCollection", features: rows.filter(r => r.lat != null && r.lon != null).map(r => ({ type: "Feature", properties: r, geometry: { type: "Point", coordinates: [r.lon, r.lat] } })) });
+  for (let h = 1; h <= 6 && !euLevelTime; h++) {
+    const t = new Date(Date.now() - h * 3600e3).toISOString().substring(0, 13);
+    try {
+      const r = await fetch(EEA + "map/" + t + ".json");
+      if (r.ok) { euLevels = await r.json(); euLevelTime = t.replace("T", " ") + ":00"; }
+    } catch (_) {}
+  }
+  euLayer.addGeoJson({ type: "FeatureCollection", features: rows.filter(r => r.lat != null && r.lon != null).map(r => ({ type: "Feature", properties: Object.assign({ level: euLevels[r.code] }, r), geometry: { type: "Point", coordinates: [r.lon, r.lat] } })) });
   euLoaded = true;
   note.textContent = "EU: " + rows.length + " STATIONS";
 }
