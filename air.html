@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AIR | Skunk Works</title>
+<style>
+:root { --ink: #fff; --green: #00ff66; --line: #00a83f; }
+* { box-sizing: border-box; }
+body { margin: 0; color: var(--ink); background: #000; font-family: "Courier New", monospace; font-size: 14px; font-weight: 600; }
+main { max-width: 1180px; margin: 0 auto; padding: 28px 20px 44px; }
+header { display: flex; justify-content: space-between; align-items: end; border-bottom: 1px solid var(--line); padding-bottom: 18px; margin-bottom: 14px; }
+h1 { margin: 0; color: var(--green); letter-spacing: 3px; }
+a, button { border: 1px solid var(--line); background: #0b2517; color: var(--ink); padding: 9px 13px; font: inherit; text-decoration: none; cursor: pointer; }
+#wrap { position: relative; }
+#map { height: 78vh; min-height: 420px; border: 1px solid var(--line); background: #111; }
+.modes { display: flex; gap: 6px; margin: 10px; }
+.modes button { background: rgba(0,0,0,.85); }
+.modes button.active { background: var(--green); color: #000; }
+#note { position: absolute; left: 10px; bottom: 28px; z-index: 5; background: rgba(0,0,0,.8); padding: 4px 8px; font-size: 12px; }
+.iw { color: #000; font-family: "Courier New", monospace; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div><h1>AIR QUALITY</h1></div>
+    <div><a href="index.html">[ CONTROL ]</a></div>
+  </header>
+  <div id="wrap">
+    <div id="map"></div>
+    <div id="note">LOADING...</div>
+  </div>
+</main>
+<script>
+const EEA =  "https://dis2datalake.blob.core.windows.net/airquality-derivated/AQI-noRunningMeans/";
+const WAQI = "https://mapq.waqi.info/mapq/bounds/?inc=placeholders&k=_2Y2EvQV0mTw8_ZCQ_ZQ4VYA&bounds=";
+const note = document.getElementById("note");
+const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const aqiColor = v => { v = Number(v); return isNaN(v) ? "#888" : v <= 50 ? "#00e400" : v <= 100 ? "#ffff00" : v <= 150 ? "#ff7e00" : v <= 200 ? "#ff0000" : v <= 300 ? "#8f3f97" : "#7e0023"; };
+const dot = (color, r) => ({ path: google.maps.SymbolPath.CIRCLE, scale: r, fillColor: color, fillOpacity: .95, strokeColor: "#000", strokeWeight: 1 });
+
+let map, info, euLayer, worldLayer, heat, mode = null, euLoaded = false, worldReq = 0, heatOn = false;
+
+function initMap() {
+  map = new google.maps.Map(document.getElementById("map"), {
+    center: { lat: 50, lng: 10 }, zoom: 4, mapTypeId: "hybrid", mapTypeControl: true,
+    streetViewControl: false, fullscreenControl: true, gestureHandling: "greedy"
+  });
+  info = new google.maps.InfoWindow();
+  euLayer = new google.maps.Data();
+  worldLayer = new google.maps.Data();
+  euLayer.setStyle(f => ({ icon: dot(f.getProperty("operational") ? "#00ff66" : "#888", 5) }));
+  worldLayer.setStyle(f => ({ icon: dot(aqiColor(f.getProperty("aqi")), 6) }));
+  euLayer.addListener("click", e => {
+    const p = n => esc(e.feature.getProperty(n));
+    info.setContent('<div class="iw"><b>' + p("name") + "</b><br>" + p("municipality") + "<br>" + p("station_type") + " / " + p("area_classification") +
+      "<br>" + p("code") + "<br>" + p("organisation") + '<br><a target="_blank" rel="noopener" href="https://airindex.eea.europa.eu/AQI/index.html">EEA index</a></div>');
+    info.setPosition(e.latLng); info.open(map);
+  });
+  worldLayer.addListener("click", e => {
+    const p = n => esc(e.feature.getProperty(n));
+    info.setContent('<div class="iw"><b>' + p("city") + "</b><br>AQI: " + p("aqi") + " (" + p("pol") + ")<br>" + p("utime") +
+      '<br><a target="_blank" rel="noopener" href="https://aqicn.org/city/@' + encodeURIComponent(e.feature.getProperty("idx")) + '">details</a></div>');
+    info.setPosition(e.latLng); info.open(map);
+  });
+
+  // Google Air Quality API heatmap (needs the Air Quality API enabled on the key)
+  heat = {
+    getTile: (c, z, doc) => {
+      const img = doc.createElement("img");
+      img.style.opacity = .55;
+      img.src = "/cgi-bin/airtile.cgi?z=" + z + "&x=" + c.x + "&y=" + c.y;
+      return img;
+    },
+    tileSize: new google.maps.Size(256, 256), releaseTile: () => {}
+  };
+
+  const box = document.createElement("div");
+  box.className = "modes";
+  box.innerHTML = '<button type="button" data-m="eu">EU</button><button type="button" data-m="world">GLOBAL</button><button type="button" data-m="heat">HEAT</button>';
+  box.onclick = ev => {
+    const m = ev.target.dataset && ev.target.dataset.m;
+    if (m === "heat") toggleHeat(); else if (m) setMode(m);
+  };
+  map.controls[google.maps.ControlPosition.TOP_LEFT].push(box);
+  map.addListener("idle", () => { if (mode === "world") loadWorld(); });
+  setMode("eu");
+}
+
+function toggleHeat() {
+  heatOn = !heatOn;
+  map.overlayMapTypes.clear();
+  if (heatOn) map.overlayMapTypes.push(heat);
+  document.querySelector('[data-m="heat"]').classList.toggle("active", heatOn);
+}
+
+async function loadEU() {
+  note.textContent = "LOADING EU STATIONS...";
+  const idx = await (await fetch(EEA + "content/index.json")).json();
+  const f = idx.contents.filter(n => n.startsWith("raw_stations.json")).sort().pop();
+  const rows = await (await fetch(EEA + "content/" + f)).json();
+  euLayer.addGeoJson({ type: "FeatureCollection", features: rows.filter(r => r.lat != null && r.lon != null).map(r => ({ type: "Feature", properties: r, geometry: { type: "Point", coordinates: [r.lon, r.lat] } })) });
+  euLoaded = true;
+  note.textContent = "EU: " + rows.length + " STATIONS";
+}
+
+async function loadWorld() {
+  const id = ++worldReq;
+  const b = map.getBounds();
+  if (!b) return;
+  const ne = b.getNorthEast(), sw = b.getSouthWest();
+  const span = b.toSpan();
+  const w = span.lng() >= 359 ? -180 : sw.lng(), e = span.lng() >= 359 ? 180 : ne.lng();
+  note.textContent = "LOADING STATIONS...";
+  try {
+    const rows = await (await fetch(WAQI + "((" + Math.max(-90, sw.lat()) + "," + w + "),(" + Math.min(90, ne.lat()) + "," + e + "))")).json();
+    if (id !== worldReq || mode !== "world") return;
+    worldLayer.forEach(f => worldLayer.remove(f));
+    worldLayer.addGeoJson({ type: "FeatureCollection", features: rows.map(r => ({ type: "Feature", properties: r, geometry: { type: "Point", coordinates: [r.lon, r.lat] } })) });
+    note.textContent = "GLOBAL: " + rows.length + " STATIONS IN VIEW";
+  } catch (err) { note.textContent = "ERROR: " + err.message; }
+}
+
+async function setMode(m) {
+  mode = m;
+  info.close();
+  document.querySelectorAll('.modes [data-m="eu"], .modes [data-m="world"]').forEach(b => b.classList.toggle("active", b.dataset.m === m));
+  if (m === "eu") {
+    worldLayer.setMap(null); euLayer.setMap(map);
+    map.setCenter({ lat: 50, lng: 10 }); map.setZoom(4);
+    try { if (!euLoaded) await loadEU(); else note.textContent = "EU STATIONS"; } catch (err) { note.textContent = "ERROR: " + err.message; }
+  } else {
+    euLayer.setMap(null); worldLayer.setMap(map);
+    map.setCenter({ lat: 20, lng: 0 }); map.setZoom(2);
+  }
+}
+
+window.gm_authFailure = () => { note.textContent = "GOOGLE MAPS KEY REJECTED"; };
+window.initMap = initMap;
+fetch("/cgi-bin/airkey.cgi", { cache: "no-store" }).then(r => r.json()).then(d => {
+  if (!d.ok) throw new Error(d.error);
+  const s = document.createElement("script");
+  s.async = true;
+  s.src = "https://maps.googleapis.com/maps/api/js?key=" + encodeURIComponent(d.key) + "&callback=initMap&loading=async";
+  document.head.appendChild(s);
+}).catch(err => { note.textContent = "KEY ERROR: " + err.message; });
+</script>
+</body>
+</html>
