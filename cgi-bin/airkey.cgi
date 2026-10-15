@@ -21,8 +21,7 @@ def respond(payload, status=None):
 
 
 referer = os.environ.get("HTTP_REFERER", "")
-host = os.environ.get("HTTP_HOST", "")
-if not referer or urlparse(referer).netloc != host:
+if urlparse(referer).path != "/air.html":
     respond({"ok": False, "error": "forbidden"}, "403 Forbidden")
 else:
     try:
