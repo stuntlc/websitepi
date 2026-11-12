@@ -9,12 +9,18 @@ its also connected via adb to a android phone redmi 9a with lineageos20 and can 
 
 #portability and so on 
 
+The web interface adapts to desktop, tablet and phone screens. On smaller screens the control dashboard scrolls and uses larger touch targets; maps and dashboard panels resize or stack to fit.
+
 The whole package is run on a diy made battery pack with 8 cells and a small bms that acts as a ups .. and can be carried in a backpack and provide noc on the go and lights and so on for about 4 hours.  it can be put on a wall charger 17v 3a , it then charges until full and then runs off battery again so its not constantly pulling power from the wall , more tests need to be run on the exact hours and power draw 
 it runs super cool and has no cooling fans inside the case the whole thing is passively cooled and runs pretty fast it boots up in around 1 min and can start providing internet in case off emergency 
 
 ## Phone audio
 
 Phone audio integration is currently working and many more plugins 
+
+## Air quality map
+
+The AIR page shows EU stations by default; GLOBAL shows stations from WAQI, and HEAT toggles the Google Air Quality overlay. To keep the map responsive, at most 500 stations within the current view are displayed, spread across the view. When more stations are available, zoom in to see more detail. The status shows the displayed and total valid stations in view.
 
 #storage
 
