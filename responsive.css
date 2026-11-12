@@ -1,0 +1,67 @@
+/* Shared layout adjustments for phones, tablets and touch screens. */
+main, .panel, .layout, .grid, .shells, .photos, .media-container {
+  min-width: 0;
+}
+
+.actions, .form-actions, .statusbar, .panel-title, .legend {
+  flex-wrap: wrap;
+}
+
+.panel-title { gap: 8px; }
+.panel, .statusbar, .target, .phone-link { overflow-wrap: anywhere; }
+.photos figure { min-width: 0; margin: 0; }
+.grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); }
+.leases { grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); }
+
+button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible {
+  outline: 2px solid #00ff66;
+  outline-offset: 2px;
+}
+
+@media (max-width: 1050px) {
+  #topology { grid-template-columns: 1fr; min-height: 0; }
+  #topology .connector { width: 1px; height: 18px; margin: 0 auto; }
+  #topology .connector::after { content: "v"; right: -4px; top: 5px; }
+}
+
+@media (max-width: 760px) {
+  main { padding: 18px 12px 30px; }
+  main > header { align-items: flex-start; flex-direction: column; gap: 12px; }
+  main > header > div:last-child { display: flex; flex-wrap: wrap; gap: 8px; }
+  main > header h1 { font-size: clamp(22px, 6vw, 32px); overflow-wrap: anywhere; }
+  .statusbar { gap: 8px; }
+  .panel { padding: 12px; }
+  #map { height: 55vh; min-height: 300px; }
+  #layout .panel { max-height: none; }
+  #note { right: 10px; bottom: 28px; left: 10px; overflow-wrap: anywhere; }
+  .modes button { min-height: 44px; }
+}
+
+@media (max-width: 1024px) {
+  body.home { height: auto; min-height: 100vh; overflow: auto; background-attachment: scroll; }
+  .home .topbar { flex: none; padding: 10px 12px; gap: 8px; }
+  .home .topbar h1 { display: block; margin: 0; }
+  .home .controls-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; align-items: stretch; }
+  .home .controls-row button { min-width: 0; min-height: 44px; padding: 6px 3px; font-size: 12px; white-space: normal; overflow-wrap: anywhere; }
+  .home .main { flex: none; justify-content: flex-start; overflow: visible; padding: 12px; }
+  .home .media-container { max-width: 100%; align-items: stretch; }
+  .home .media-container > div { min-width: 0; }
+  .home .title-side { display: none; }
+  .home .controls-side { width: 100%; }
+  .home .controls-side h1 { display: none; }
+  .home #output { max-width: 100%; font-size: 12px; }
+  .home #preview, .home #live { max-width: 100%; width: auto; max-height: 55vh; }
+  .home #outputPanel { position: relative; width: 100%; max-height: 70vh; }
+  .home .phonePhotoFrame { min-width: 0; max-width: 100%; flex: 1 1 280px; }
+  .home .phonePhotoControls button, .home #rotateControls button { min-height: 44px; font-size: 13px; }
+}
+
+@media (max-width: 360px) {
+  .home .controls-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (pointer: coarse) {
+  main button:not(#map button), main a:not(#map a), .home button, .home a { min-height: 44px; }
+  main a:not(#map a) { display: inline-flex; align-items: center; }
+  input:not([type="checkbox"]):not([type="radio"]), textarea { font-size: 16px; }
+}

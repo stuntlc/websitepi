@@ -20,6 +20,7 @@ a, button { border: 1px solid var(--line); background: #0b2517; color: var(--ink
 #note { position: absolute; left: 10px; bottom: 28px; z-index: 5; background: rgba(0,0,0,.8); padding: 4px 8px; font-size: 12px; }
 .iw { color: #000; font-family: "Courier New", monospace; }
 </style>
+<link rel="stylesheet" href="responsive.css">
 </head>
 <body>
 <main>
@@ -40,7 +41,10 @@ const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&a
 const aqiColor = v => { v = Number(v); return isNaN(v) ? "#888" : v <= 50 ? "#00e400" : v <= 100 ? "#ffff00" : v <= 150 ? "#ff7e00" : v <= 200 ? "#ff0000" : v <= 300 ? "#8f3f97" : "#7e0023"; };
 const dot = (color, r) => ({ path: google.maps.SymbolPath.CIRCLE, scale: r, fillColor: color, fillOpacity: .95, strokeColor: "#000", strokeWeight: 1 });
 
-let map, info, euLayer, worldLayer, heat, mode = null, euLoaded = false, worldReq = 0, heatOn = false;
+const MAX_MARKERS = 500;
+const VIEW_DELAY = 250;
+let map, info, euLayer, worldLayer, heat, mode = null, heatOn = false;
+let euRows = null, euLoading = null, worldController = null, worldReq = 0, viewTimer;
 
 const EU_BANDS = [null, ["Good", "#50f0e6"], ["Fair", "#50ccaa"], ["Moderate", "#f0e641"], ["Poor", "#ff5050"], ["Very poor", "#960032"], ["Extremely poor", "#7d2181"]];
 const euBand = v => { const n = Math.min(6, Math.max(1, Math.round(Number(v)))); return isNaN(n) ? null : EU_BANDS[n]; };
@@ -91,7 +95,12 @@ function initMap() {
     if (m === "heat") toggleHeat(); else if (m) setMode(m);
   };
   map.controls[google.maps.ControlPosition.TOP_LEFT].push(box);
-  map.addListener("idle", () => { if (mode === "world") loadWorld(); });
+  map.addListener("bounds_changed", () => {
+    clearTimeout(viewTimer);
+    if (worldController) worldController.abort();
+    worldReq++;
+  });
+  map.addListener("idle", scheduleView);
   setMode("eu");
 }
 
@@ -102,51 +111,148 @@ function toggleHeat() {
   document.querySelector('[data-m="heat"]').classList.toggle("active", heatOn);
 }
 
+async function fetchJSON(url, options) {
+  const response = await fetch(url, options);
+  if (!response.ok) throw new Error("HTTP " + response.status + " loading " + url);
+  return response.json();
+}
+
+function validStation(row) {
+  return row && row.lat != null && row.lon != null &&
+    Number.isFinite(Number(row.lat)) && Number.isFinite(Number(row.lon)) &&
+    Math.abs(Number(row.lat)) <= 90 && Math.abs(Number(row.lon)) <= 180;
+}
+
+function viewBounds() {
+  const b = map.getBounds();
+  if (!b) return null;
+  const ne = b.getNorthEast(), sw = b.getSouthWest();
+  return {
+    south: Math.max(-90, sw.lat()), north: Math.min(90, ne.lat()),
+    west: b.toSpan().lng() >= 359 ? -180 : sw.lng(),
+    east: b.toSpan().lng() >= 359 ? 180 : ne.lng()
+  };
+}
+
+function stationsInView(rows, bounds) {
+  const width = (bounds.east - bounds.west + 360) % 360 || 360;
+  const height = bounds.north - bounds.south || 1;
+  const cells = new Map();
+  let count = 0;
+  for (const row of rows) {
+    if (!validStation(row)) continue;
+    const lat = Number(row.lat), lon = Number(row.lon);
+    const x = (lon - bounds.west + 360) % 360;
+    if (lat < bounds.south || lat > bounds.north || x > width) continue;
+    count++;
+    const key = Math.min(19, Math.floor(x / width * 20)) + "," +
+      Math.min(19, Math.floor((lat - bounds.south) / height * 20));
+    if (!cells.has(key)) cells.set(key, []);
+    cells.get(key).push(row);
+  }
+  const selected = [];
+  for (let i = 0; selected.length < MAX_MARKERS; i++) {
+    let added = false;
+    for (const cell of cells.values()) {
+      if (i < cell.length) {
+        selected.push(cell[i]);
+        added = true;
+        if (selected.length === MAX_MARKERS) break;
+      }
+    }
+    if (!added) break;
+  }
+  return { selected, count };
+}
+
+function renderStations(layer, rows, bounds, label) {
+  const result = stationsInView(rows, bounds);
+  layer.forEach(f => layer.remove(f));
+  layer.addGeoJson({
+    type: "FeatureCollection",
+    features: result.selected.map(r => ({
+      type: "Feature", properties: r,
+      geometry: { type: "Point", coordinates: [Number(r.lon), Number(r.lat)] }
+    }))
+  });
+  note.textContent = label + ": " + result.selected.length + " / " + result.count +
+    " STATIONS IN VIEW" + (result.count > result.selected.length ? " - ZOOM IN FOR MORE" : "");
+  if (label === "EU" && !euLevelTime) note.textContent += " - AIR QUALITY DATA UNAVAILABLE";
+}
+
+function scheduleView() {
+  clearTimeout(viewTimer);
+  viewTimer = setTimeout(() => {
+    const bounds = viewBounds();
+    if (!bounds) return;
+    if (mode === "eu" && euRows) renderStations(euLayer, euRows, bounds, "EU");
+    else if (mode === "world") loadWorld(bounds);
+  }, VIEW_DELAY);
+}
+
 async function loadEU() {
-  note.textContent = "LOADING EU STATIONS...";
-  const idx = await (await fetch(EEA + "content/index.json")).json();
+  const idx = await fetchJSON(EEA + "content/index.json");
   const f = idx.contents.filter(n => n.startsWith("raw_stations.json")).sort().pop();
-  const rows = await (await fetch(EEA + "content/" + f)).json();
+  if (!f) throw new Error("EU station list not found");
+  const rows = await fetchJSON(EEA + "content/" + f);
   for (let h = 1; h <= 6 && !euLevelTime; h++) {
     const t = new Date(Date.now() - h * 3600e3).toISOString().substring(0, 13);
     try {
       const r = await fetch(EEA + "map/" + t + ".json");
       if (r.ok) { euLevels = await r.json(); euLevelTime = t.replace("T", " ") + ":00"; }
-    } catch (_) {}
+      else if (r.status !== 404) console.warn("EU air quality data: HTTP " + r.status);
+    } catch (err) { console.warn("EU air quality data:", err); }
   }
-  euLayer.addGeoJson({ type: "FeatureCollection", features: rows.filter(r => r.lat != null && r.lon != null).map(r => ({ type: "Feature", properties: Object.assign({ level: euLevels[r.code] }, r), geometry: { type: "Point", coordinates: [r.lon, r.lat] } })) });
-  euLoaded = true;
-  note.textContent = "EU: " + rows.length + " STATIONS";
+  euRows = rows.map(r => Object.assign({}, r, { level: euLevels[r.code] }));
 }
 
-async function loadWorld() {
+async function loadWorld(bounds) {
+  if (worldController) worldController.abort();
+  const controller = new AbortController();
+  worldController = controller;
   const id = ++worldReq;
-  const b = map.getBounds();
-  if (!b) return;
-  const ne = b.getNorthEast(), sw = b.getSouthWest();
-  const span = b.toSpan();
-  const w = span.lng() >= 359 ? -180 : sw.lng(), e = span.lng() >= 359 ? 180 : ne.lng();
   note.textContent = "LOADING STATIONS...";
   try {
-    const rows = await (await fetch(WAQI + "((" + Math.max(-90, sw.lat()) + "," + w + "),(" + Math.min(90, ne.lat()) + "," + e + "))")).json();
+    const ranges = bounds.west > bounds.east ? [[bounds.west, 180], [-180, bounds.east]] : [[bounds.west, bounds.east]];
+    const responses = await Promise.all(ranges.map(range => fetchJSON(
+      WAQI + "((" + bounds.south + "," + range[0] + "),(" + bounds.north + "," + range[1] + "))",
+      { signal: controller.signal }
+    )));
     if (id !== worldReq || mode !== "world") return;
-    worldLayer.forEach(f => worldLayer.remove(f));
-    worldLayer.addGeoJson({ type: "FeatureCollection", features: rows.map(r => ({ type: "Feature", properties: r, geometry: { type: "Point", coordinates: [r.lon, r.lat] } })) });
-    note.textContent = "GLOBAL: " + rows.length + " STATIONS IN VIEW";
-  } catch (err) { note.textContent = "ERROR: " + err.message; }
+    if (responses.some(rows => !Array.isArray(rows))) throw new Error("Invalid global station data");
+    renderStations(worldLayer, responses.flat(), bounds, "GLOBAL");
+  } catch (err) {
+    if (id === worldReq && mode === "world" && err.name !== "AbortError") note.textContent = "ERROR: " + err.message;
+  } finally {
+    if (worldController === controller) worldController = null;
+  }
 }
 
 async function setMode(m) {
+  clearTimeout(viewTimer);
+  if (worldController) worldController.abort();
+  worldReq++;
   mode = m;
   info.close();
   document.querySelectorAll('.modes [data-m="eu"], .modes [data-m="world"]').forEach(b => b.classList.toggle("active", b.dataset.m === m));
   if (m === "eu") {
     worldLayer.setMap(null); euLayer.setMap(map);
     map.setCenter({ lat: 50, lng: 10 }); map.setZoom(4);
-    try { if (!euLoaded) await loadEU(); else note.textContent = "EU STATIONS"; } catch (err) { note.textContent = "ERROR: " + err.message; }
+    if (!euRows) {
+      note.textContent = "LOADING EU STATIONS...";
+      try {
+        if (!euLoading) euLoading = loadEU().finally(() => { euLoading = null; });
+        await euLoading;
+      } catch (err) {
+        if (mode === "eu") note.textContent = "ERROR: " + err.message;
+        return;
+      }
+    }
+    if (mode === "eu") scheduleView();
   } else {
     euLayer.setMap(null); worldLayer.setMap(map);
     map.setCenter({ lat: 20, lng: 0 }); map.setZoom(2);
+    scheduleView();
   }
 }
 

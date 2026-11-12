@@ -247,7 +247,6 @@ button:active, a:active {
   display: none;
   margin-top: 8px;
   width: 100%;
-  display: flex;
   justify-content: center;
 }
 
@@ -299,7 +298,7 @@ button:active, a:active {
   top: 50%;
   right: max(10px, 1.5vw);
   transform: translateY(-50%);
-  display: flex;
+  display: none;
   flex-direction: column;
   gap: 8px;
   z-index: 2000;
@@ -482,8 +481,9 @@ body::before { background: rgba(0, 0, 0, 0.82); }
 .topbar, #outputPanel { border-color: rgba(0, 255, 0, 0.7); }
 #output, #outputPanel pre, .phonePhotoLabel { color: #00ff66; font-weight: 700; }
 </style>
+<link rel="stylesheet" href="responsive.css">
 </head>
-<body>
+<body class="home">
 
 <div class="topbar">
   <h1>SKUNK WORKS NOC</h1>
