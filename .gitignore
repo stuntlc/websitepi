@@ -14,3 +14,9 @@ android/UdpMic/.gradle/
 android/UdpMic/.idea/
 android/UdpMic/local.properties
 
+cgi-bin/ieee-oui.txt
+logs/*.log
+logs/oui-config.json
+logs/oui-known.json
+logs/oui-labels.json
+logs/oui-names.json
