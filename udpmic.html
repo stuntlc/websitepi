@@ -62,7 +62,7 @@ audio { width: 100%; display: block; }
       <div class="target" id="target">HOST : PORT</div>
       <p class="phone-link" id="phone-link">PHONE (rndis0): checking...</p>
       <div class="controls">
-        <button id="start-btn" onclick="startReceiver()">[ START RECEIVER ]</button>
+        <button id="start-btn" onclick="startReceiver()">[ START MIC ]</button>
         <button id="stop-btn" onclick="stopReceiver()">[ STOP ]</button>
         <button onclick="refreshPhoneLink()">[ RESCAN LINK ]</button>
         <button id="force-btn" onclick="forceUnstick()">[ FORCE UNSTICK ]</button>
@@ -154,7 +154,7 @@ async function refreshPhoneLink() {
   }
 }
 
-refreshPhoneLink();
+const phoneLinkReady = refreshPhoneLink();
 checkAppInstalled();
 
 stream.volume = 1;
@@ -194,12 +194,20 @@ async function startReceiver() {
   try {
     panelStatus.classList.remove("error");
     status.classList.remove("error");
-    panelStatus.textContent = "STARTING RECEIVER...";
+    panelStatus.textContent = "CLEANING UP AND STARTING RECEIVER...";
     const response = await fetch("/cgi-bin/udpmic.cgi?action=start", { cache: "no-store" });
     const text = (await response.text()).trim();
     if (!response.ok || /^ERROR/i.test(text)) throw new Error(text || "Could not start receiver.");
-    panelStatus.textContent = "RECEIVER STARTED. WAITING FOR PHONE...";
+    panelStatus.textContent = "RECEIVER STARTED. STARTING PHONE APP...";
     status.textContent = "UDP RECEIVER ONLINE";
+
+    await phoneLinkReady;
+    let phoneError = "";
+    try {
+      await requestAdb("start");
+    } catch (error) {
+      phoneError = error.message;
+    }
 
     const requestStarted = performance.now();
     const url = "http://" + location.hostname + ":" + STREAM_PORT + "/?t=" + Date.now();
@@ -208,12 +216,17 @@ async function startReceiver() {
     stream.volume = 1;
     stream.muted = false;
     stream.load();
-    try {
-      await stream.play();
-    } catch (playError) {
-      panelStatus.textContent = "PLAYBACK BLOCKED: " + playError.message + " -- TAP [ START RECEIVER ] AGAIN OR CHECK PHONE MEDIA VOLUME.";
+    if (phoneError) {
+      panelStatus.textContent = "PHONE APP COULD NOT START VIA ADB: " + phoneError + " -- START IT MANUALLY, POINTING TO " + resolvedHost + ":" + UDP_PORT + ".";
       panelStatus.classList.add("error");
+    } else {
+      panelStatus.textContent = "PHONE START COMMAND SENT. WAITING FOR AUDIO...";
     }
+    stream.play().catch((playError) => {
+      if (playError.name === "AbortError") return;
+      panelStatus.textContent += " PLAYBACK BLOCKED: " + playError.message + " -- PRESS PLAY ON THE AUDIO PLAYER.";
+      panelStatus.classList.add("error");
+    });
   } catch (error) {
     panelStatus.textContent = error.message;
     panelStatus.classList.add("error");
@@ -229,12 +242,21 @@ async function stopReceiver() {
   receiverBusy = true;
   setReceiverButtonsDisabled(true);
   try {
-    await fetch("/cgi-bin/udpmic.cgi?action=stop", { cache: "no-store" });
+    const response = await fetch("/cgi-bin/udpmic.cgi?action=stop", { cache: "no-store" });
+    const text = (await response.text()).trim();
+    if (!response.ok || /^ERROR/i.test(text)) throw new Error(text || "Could not stop receiver.");
     stream.pause();
     stream.removeAttribute("src");
     stream.load();
     panelStatus.textContent = "RECEIVER STOPPED.";
     status.textContent = "READY";
+    try {
+      await requestAdb("stop");
+      panelStatus.textContent = "RECEIVER STOPPED. PHONE STOP COMMAND SENT.";
+    } catch (error) {
+      panelStatus.textContent = "RECEIVER STOPPED. PHONE APP COULD NOT STOP VIA ADB: " + error.message;
+      panelStatus.classList.add("error");
+    }
   } catch (error) {
     panelStatus.textContent = error.message;
     panelStatus.classList.add("error");
@@ -253,6 +275,7 @@ async function forceUnstick() {
     panelStatus.textContent = "FORCING CLEANUP...";
     const response = await fetch("/cgi-bin/udpmic.cgi?action=force", { cache: "no-store" });
     const text = (await response.text()).trim();
+    if (!response.ok || /^ERROR/i.test(text)) throw new Error(text || "Cleanup failed.");
     stream.pause();
     stream.removeAttribute("src");
     stream.load();
@@ -287,14 +310,18 @@ document.getElementById("control-link").addEventListener("click", (event) => {
 
 window.addEventListener("pagehide", stopAll);
 
+async function requestAdb(action) {
+  const params = new URLSearchParams({ action, host: resolvedHost, port: String(UDP_PORT) });
+  const response = await fetch("/cgi-bin/udpmic-adb.cgi?" + params.toString(), { cache: "no-store" });
+  const data = await response.json();
+  if (!response.ok || !data.ok) throw new Error(data.error || "ADB command failed.");
+  return data.message;
+}
+
 async function adbControl(action) {
   try {
     panelStatus.classList.remove("error");
-    const params = new URLSearchParams({ action, host: resolvedHost, port: String(UDP_PORT) });
-    const response = await fetch("/cgi-bin/udpmic-adb.cgi?" + params.toString(), { cache: "no-store" });
-    const data = await response.json();
-    if (!response.ok || !data.ok) throw new Error(data.error || "ADB command failed.");
-    panelStatus.textContent = data.message;
+    panelStatus.textContent = await requestAdb(action);
   } catch (error) {
     panelStatus.textContent = error.message;
     panelStatus.classList.add("error");

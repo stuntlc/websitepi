@@ -15,14 +15,7 @@ clients_lock = threading.Lock()
 clients = []
 
 
-def udp_receiver():
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    try:
-        sock.bind(("0.0.0.0", UDP_PORT))
-    except OSError as error:
-        print(f"udp bind failed on {UDP_PORT}: {error}", file=sys.stderr, flush=True)
-        raise SystemExit(1)
+def udp_receiver(sock):
     while True:
         data, _ = sock.recvfrom(4096)
         with clients_lock:
@@ -86,10 +79,15 @@ class ThreadingHTTPServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
 
 
 if __name__ == "__main__":
-    threading.Thread(target=udp_receiver, daemon=True).start()
     try:
-        with ThreadingHTTPServer(("", HTTP_PORT), StreamHandler) as httpd:
-            httpd.serve_forever()
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+            sock.bind(("0.0.0.0", UDP_PORT))
+            httpd = ThreadingHTTPServer(("", HTTP_PORT), StreamHandler)
+            try:
+                threading.Thread(target=udp_receiver, args=(sock,), daemon=True).start()
+                httpd.serve_forever()
+            finally:
+                httpd.server_close()
     except OSError as error:
-        print(f"http bind failed on {HTTP_PORT}: {error}", file=sys.stderr, flush=True)
+        print("receiver startup failed: {}".format(error), file=sys.stderr, flush=True)
         raise SystemExit(1)

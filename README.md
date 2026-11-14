@@ -18,6 +18,14 @@ it runs super cool and has no cooling fans inside the case the whole thing is pa
 
 Phone audio integration is currently working and many more plugins 
 
+On the UDP Mic page, select **START MIC** to clean up the old receiver, start
+the new receiver, and send the phone app a start command over ADB. Allow the
+microphone permission on the phone first. If ADB is unavailable, start the app
+manually using the host and port shown on the page. Press play on the audio
+player if the browser blocks automatic playback. **STOP** stops the receiver
+and sends the phone app a stop command. The receiver reports port conflicts
+instead of killing unrelated processes.
+
 ## Air quality map
 
 The AIR page shows EU stations by default; GLOBAL shows stations from WAQI, and HEAT toggles the Google Air Quality overlay. To keep the map responsive, at most 500 stations within the current view are displayed, spread across the view. When more stations are available, zoom in to see more detail. The status shows the displayed and total valid stations in view.

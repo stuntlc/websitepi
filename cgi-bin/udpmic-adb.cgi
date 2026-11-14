@@ -39,6 +39,10 @@ if action == "status":
     except (OSError, subprocess.TimeoutExpired) as error:
         respond({"ok": False, "error": "adb command failed: " + str(error)}, "502 Bad Gateway")
         raise SystemExit
+    if result.returncode != 0:
+        message = (result.stderr or result.stdout).strip() or "adb status check failed."
+        respond({"ok": False, "error": message}, "502 Bad Gateway")
+        raise SystemExit
     installed = APP_PACKAGE in result.stdout
     respond({"ok": True, "installed": installed})
     raise SystemExit
@@ -65,7 +69,7 @@ if action == "launch":
     except (OSError, subprocess.TimeoutExpired) as error:
         respond({"ok": False, "error": "adb command failed: " + str(error)}, "502 Bad Gateway")
         raise SystemExit
-    if result.returncode != 0:
+    if result.returncode != 0 or "Error:" in result.stdout:
         message = (result.stderr or result.stdout).strip() or "adb launch failed."
         respond({"ok": False, "error": message}, "502 Bad Gateway")
         raise SystemExit
@@ -101,7 +105,7 @@ except (OSError, subprocess.TimeoutExpired) as error:
     respond({"ok": False, "error": "adb command failed: " + str(error)}, "502 Bad Gateway")
     raise SystemExit
 
-if result.returncode != 0:
+if result.returncode != 0 or "Error:" in result.stdout:
     message = (result.stderr or result.stdout).strip() or "adb command failed."
     respond({"ok": False, "error": message}, "502 Bad Gateway")
     raise SystemExit
