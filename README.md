@@ -30,10 +30,27 @@ browser. Paste a YouTube video link and select **Play on phone** to open another
 video. Watch, shortened, Shorts, live and embed video links are supported; extra
 parameters such as timestamps are not retained. The phone must be connected and
 authorized over ADB, unlocked, online, and have a default browser configured.
-Browser or YouTube autoplay restrictions may require pressing play on the phone.
-The dashboard requests autoplay, but cannot override those restrictions.
+**Stop video** stops the phone's browser, including other tabs playing media.
+While a video is open, the dashboard shows a phone screenshot refreshed every
+three seconds, rather than a live video stream. Stop video ends the refresh.
+Anyone with access to the dashboard can request a screenshot of the phone screen.
+The dashboard locks the phone in landscape and uses the browser's ADB debugging
+interface to start full-screen playback. It restores the previous rotation
+setting when stopped. Browser or YouTube restrictions may prevent playback; the
+dashboard reports full-screen errors. The browser must expose its WebView
+debugging interface over ADB, as Jelly does on the current LineageOS phone.
 The CGI uses the same default phone serial as the camera; set `PHONE_ADB_SERIAL`
 in the web service environment to select another phone.
+
+Install the browser-control dependency on the Pi as the web service user:
+
+```
+python3 -m pip install --user -r requirements.txt
+```
+
+SMS and FM radio temporarily use portrait for their touch controls, then restore
+the phone's previous rotation setting. The phone controls wait for one another
+to avoid changing orientation during an SMS or FM operation.
 
 ## Phone audio
 

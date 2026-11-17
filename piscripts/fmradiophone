@@ -1,5 +1,13 @@
-adb shell am start -n com.android.fmradio/.FmMainActivity
+#!/bin/bash
+ADB="${ADB:-adb}"
+source "$(dirname "$0")/phone-portrait.sh"
+
+trap 'status=$?; phone_portrait_restore || status=1; exit "$status"' EXIT
+trap 'exit 1' INT TERM
+phone_portrait_begin || exit 1
+
+"$ADB" shell am start -n com.android.fmradio/.FmMainActivity 9>&- || exit 1
 sleep 1
-adb shell input tap 550 120
+"$ADB" shell input tap 550 120 9>&- || exit 1
 sleep 1
-adb shell input tap 550 220
+"$ADB" shell input tap 550 220 9>&- || exit 1

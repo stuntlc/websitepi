@@ -4,6 +4,7 @@ NUMBER="$1"
 MESSAGE="$2"
 
 ADB="${ADB:-adb}"
+source "$(dirname "$0")/phone-portrait.sh"
 COMPOSE_X="${SMS_COMPOSE_X:-340}"
 COMPOSE_Y="${SMS_COMPOSE_Y:-1419}"
 SEND_X="${SMS_SEND_X:-648}"
@@ -12,21 +13,30 @@ WAIT_AFTER_LAUNCH="${SMS_WAIT_AFTER_LAUNCH:-2}"
 WAIT_AFTER_INPUT="${SMS_WAIT_AFTER_INPUT:-1}"
 
 run_adb() {
-    if ! "$ADB" "$@"; then
+    if ! "$ADB" "$@" 9>&-; then
         echo "ADB command failed: $*"
         exit 1
     fi
 }
 
 cleanup_messaging() {
-    "$ADB" shell am force-stop com.android.messaging >/dev/null 2>&1 || true
+    "$ADB" shell am force-stop com.android.messaging 9>&- >/dev/null 2>&1 || true
+}
+
+cleanup_phone() {
+    local status=$?
+    if [ "${PHONE_UI_STARTED:-0}" = "1" ]; then
+        cleanup_messaging
+    fi
+    phone_portrait_restore || status=1
+    exit "$status"
 }
 
 tap_send_button() {
     local ui_xml node node_lc bounds left top right bottom
 
-    if "$ADB" shell uiautomator dump /sdcard/sms-window.xml >/dev/null 2>&1; then
-        ui_xml=$("$ADB" shell cat /sdcard/sms-window.xml 2>/dev/null | tr -d '\r')
+    if "$ADB" shell uiautomator dump /sdcard/sms-window.xml 9>&- >/dev/null 2>&1; then
+        ui_xml=$("$ADB" shell cat /sdcard/sms-window.xml 9>&- 2>/dev/null | tr -d '\r')
         while IFS= read -r node; do
             node_lc=${node,,}
             if [[ "$node_lc" == *'text="send'* || "$node_lc" == *'content-desc="send'* || "$node_lc" == *'resource-id="'*send* ]]; then
@@ -62,11 +72,13 @@ if printf '%s' "$MESSAGE" | LC_ALL=C grep -q '[^ -~]'; then
     exit 1
 fi
 
-trap cleanup_messaging EXIT
-
 echo "Sending SMS to $NUMBER: $MESSAGE"
 
 run_adb wait-for-device
+trap cleanup_phone EXIT
+trap 'exit 1' INT TERM
+phone_portrait_begin || exit 1
+PHONE_UI_STARTED=1
 
 ENCODED_MESSAGE=${MESSAGE//%/%25}
 ENCODED_MESSAGE=${ENCODED_MESSAGE// /%s}

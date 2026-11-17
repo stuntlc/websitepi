@@ -7,11 +7,13 @@ import os
 from pathlib import Path
 import subprocess
 import sys
+import tempfile
 import unittest
 from unittest import mock
 
 
 path = Path(__file__).resolve().parents[1] / "cgi-bin" / "phone-video.cgi"
+sys.path.insert(0, str(path.parent))
 loader = importlib.machinery.SourceFileLoader("phone_video", str(path))
 spec = importlib.util.spec_from_loader(loader.name, loader)
 phone_video = importlib.util.module_from_spec(spec)
@@ -45,13 +47,16 @@ class PhoneVideoTests(unittest.TestCase):
             with self.subTest(url=url):
                 self.assertIsNone(phone_video.video_url(url))
 
-    def request(self, url, results, method="POST"):
+    def request(self, url, results, method="POST", action="play"):
         form = mock.Mock()
-        form.getfirst.return_value = url
+        form.getfirst.side_effect = lambda name, default="": {"url": url, "action": action}.get(name, default)
         output = io.StringIO()
         with mock.patch.dict(os.environ, {"REQUEST_METHOD": method, "CONTENT_LENGTH": "100"}), \
                 mock.patch.object(phone_video.cgi, "FieldStorage", return_value=form), \
                 mock.patch.object(phone_video, "run_adb", side_effect=results) as adb, \
+                mock.patch.object(phone_video, "phone_lock", side_effect=contextlib.nullcontext), \
+                mock.patch.object(phone_video, "save_and_set_landscape"), \
+                mock.patch.object(phone_video, "restore_rotation"), \
                 contextlib.redirect_stdout(output):
             phone_video.main()
         return output.getvalue(), adb
@@ -63,6 +68,11 @@ class PhoneVideoTests(unittest.TestCase):
             [result("com.browser/.MainActivity\n"), result("Starting: Intent\n")],
         )
         self.assertIn('"ok": true', output)
+        self.assertEqual(adb.call_args_list[0].args, (
+            "shell", "cmd", "package", "resolve-activity", "--brief",
+            "-a", "android.intent.action.VIEW", "-c", "android.intent.category.BROWSABLE",
+            "-d", "https://example.com",
+        ))
         self.assertEqual(adb.call_args_list[1].args, (
             "shell", "am", "start", "-n", "com.browser/.MainActivity",
             "-a", "android.intent.action.VIEW", "-d",
@@ -89,6 +99,34 @@ class PhoneVideoTests(unittest.TestCase):
         output, adb = self.request("https://youtu.be/dQw4w9WgXcQ", [], method="GET")
         self.assertIn("405 Method Not Allowed", output)
         adb.assert_not_called()
+
+    def test_stop_closes_the_resolved_browser(self):
+        result = lambda stdout: subprocess.CompletedProcess([], 0, stdout, "")
+        output, adb = self.request("", [result("org.lineageos.jelly/.MainActivity\n"), result("")], action="stop")
+        self.assertIn('"ok": true', output)
+        self.assertEqual(adb.call_args_list[1].args, ("shell", "am", "force-stop", "org.lineageos.jelly"))
+
+    def test_fullscreen_reports_when_player_is_ready(self):
+        result = subprocess.CompletedProcess([], 0, "org.lineageos.jelly/.MainActivity\n", "")
+        with mock.patch.object(phone_video, "enter_fullscreen", return_value=True) as fullscreen:
+            output, _ = self.request("https://youtu.be/dQw4w9WgXcQ", [result], action="fullscreen")
+        self.assertIn('"ready": true', output)
+        self.assertEqual(fullscreen.call_args.args[1:], ("org.lineageos.jelly", "dQw4w9WgXcQ"))
+
+    def test_landscape_saves_and_restores_original_rotation(self):
+        result = lambda stdout="": subprocess.CompletedProcess([], 0, stdout, "")
+        with tempfile.TemporaryDirectory() as temp, \
+                mock.patch.object(phone_video, "ROTATION_PATH", str(Path(temp) / "rotation.json")), \
+                mock.patch.object(phone_video, "run_adb", side_effect=[
+                    result("1\n"), result("0\n"), result(), result(),
+                    result(), result(), result(), result(),
+                ]) as adb:
+            phone_video.save_and_set_landscape()
+            phone_video.save_and_set_landscape()
+            phone_video.restore_rotation()
+            self.assertFalse(Path(phone_video.ROTATION_PATH).exists())
+            self.assertEqual(adb.call_args_list[-2].args[-2:], ("user_rotation", "0"))
+            self.assertEqual(adb.call_args_list[-1].args[-2:], ("accelerometer_rotation", "1"))
 
     def test_browser_and_adb_failures_are_reported(self):
         result = subprocess.CompletedProcess([], 0, "No activity found\n", "")

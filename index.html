@@ -94,6 +94,23 @@ body::before {
   overflow-wrap: anywhere;
 }
 
+#phoneScreen {
+  display: none;
+  width: 100%;
+  margin-top: 12px;
+  text-align: center;
+  color: #00ff66;
+}
+
+#phoneScreen img {
+  display: block;
+  max-width: min(90vw, 600px);
+  max-height: 45vh;
+  margin: 6px auto;
+  object-fit: contain;
+  border: 1px solid rgba(0, 255, 0, 0.4);
+}
+
 /* --- BUTTONS --- */
 button, a {
   padding: 5px 8px;
@@ -544,6 +561,7 @@ body::before { background: rgba(0, 0, 0, 0.82); }
     <label for="youtubeUrl">YouTube link</label>
     <input id="youtubeUrl" type="url" placeholder="https://www.youtube.com/watch?v=..." required>
     <button type="submit">📱 Play on phone</button>
+    <button type="button" id="stopVideoButton">⏹ Stop video</button>
     <span class="video-status" id="videoStatus" role="status" aria-live="polite"></span>
   </form>
 </div>
@@ -596,36 +614,114 @@ body::before { background: rgba(0, 0, 0, 0.82); }
       </div>
     </div>
   </section>
+  <section id="phoneScreen">
+    <div>PHONE SCREEN (refreshes every 3 seconds)</div>
+    <img id="phoneScreenImage" alt="Latest phone screen">
+    <div id="phoneScreenStatus" role="status"></div>
+  </section>
 </div>
 
 <script>
 let liveMode = false;
 let rotation = 180;
 let phoneRotations = { rear: 0, front: 0 };
+let screenTimer = null;
+let screenGeneration = 0;
+let screenImageUrl = null;
+let videoGeneration = 0;
+let fullscreenTimer = null;
 
-async function playPhoneVideo(url) {
+function stopPhoneScreenUpdates() {
+  screenGeneration++;
+  clearTimeout(screenTimer);
+}
+
+async function updatePhoneScreen(generation) {
+  try {
+    const response = await fetch("/cgi-bin/phone-screen.cgi", { cache: "no-store" });
+    if (!response.ok || !(response.headers.get("Content-Type") || "").startsWith("image/png")) {
+      throw new Error((await response.text()).trim() || "Screenshot request failed.");
+    }
+    const image = await response.blob();
+    if (generation !== screenGeneration) return;
+    const nextUrl = URL.createObjectURL(image);
+    document.getElementById("phoneScreenImage").src = nextUrl;
+    if (screenImageUrl) URL.revokeObjectURL(screenImageUrl);
+    screenImageUrl = nextUrl;
+    document.getElementById("phoneScreenStatus").textContent = "Screen updated.";
+  } catch (error) {
+    if (generation !== screenGeneration) return;
+    document.getElementById("phoneScreenStatus").textContent = "Screen error: " + error.message;
+  }
+  if (generation === screenGeneration) {
+    screenTimer = setTimeout(() => updatePhoneScreen(generation), 3000);
+  }
+}
+
+async function phoneVideoAction(action, url = "") {
   const status = document.getElementById("videoStatus");
-  status.textContent = "Opening video on phone...";
+  const generation = ++videoGeneration;
+  clearTimeout(fullscreenTimer);
+  stopPhoneScreenUpdates();
+  status.textContent = action === "stop" ? "Stopping phone video..." : "Opening video on phone...";
   try {
     const response = await fetch("/cgi-bin/phone-video.cgi", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({ url })
+      body: new URLSearchParams({ action, url })
     });
     const result = await response.json();
+    if (generation !== videoGeneration) return;
     if (!response.ok || !result.ok) throw new Error(result.error || "Phone video request failed.");
     status.textContent = result.message;
+    if (action === "play") {
+      document.getElementById("phoneScreen").style.display = "block";
+      document.getElementById("phoneScreenStatus").textContent = "Loading phone screen...";
+      const screenVersion = screenGeneration;
+      screenTimer = setTimeout(() => updatePhoneScreen(screenVersion), 1000);
+      fullscreenTimer = setTimeout(() => enterPhoneFullscreen(url, generation, Date.now() + 60000), 3000);
+    } else {
+      document.getElementById("phoneScreenStatus").textContent = "Stopped; showing last screenshot.";
+    }
   } catch (error) {
+    if (generation !== videoGeneration) return;
     status.textContent = "Phone video error: " + error.message;
   }
 }
 
+async function enterPhoneFullscreen(url, generation, deadline) {
+  const status = document.getElementById("videoStatus");
+  try {
+    const response = await fetch("/cgi-bin/phone-video.cgi", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ action: "fullscreen", url })
+    });
+    const result = await response.json();
+    if (generation !== videoGeneration) return;
+    if (!response.ok || !result.ok) throw new Error(result.error || "Full-screen request failed.");
+    if (result.ready) {
+      status.textContent = "Video playing full screen on the phone.";
+    } else if (Date.now() < deadline) {
+      status.textContent = "Waiting for the phone video to load...";
+      fullscreenTimer = setTimeout(() => enterPhoneFullscreen(url, generation, deadline), 3000);
+    } else {
+      status.textContent = "Video did not become ready for full screen. Check the phone screen.";
+    }
+  } catch (error) {
+    if (generation === videoGeneration) status.textContent = "Full-screen error: " + error.message;
+  }
+}
+
 document.getElementById("rickButton").addEventListener("click", () => {
-  playPhoneVideo("https://www.youtube.com/watch?v=dQw4w9WgXcQ");
+  phoneVideoAction("play", "https://www.youtube.com/watch?v=dQw4w9WgXcQ");
 });
 document.getElementById("videoForm").addEventListener("submit", event => {
   event.preventDefault();
-  playPhoneVideo(document.getElementById("youtubeUrl").value.trim());
+  phoneVideoAction("play", document.getElementById("youtubeUrl").value.trim());
+});
+document.getElementById("stopVideoButton").addEventListener("click", () => {
+  phoneVideoAction("stop");
 });
 
 async function loadLatestPhoto() {

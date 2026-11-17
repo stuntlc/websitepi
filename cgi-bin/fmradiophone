@@ -2,10 +2,9 @@
 echo "Content-Type: text/plain"
 echo ""
 
-adb shell am start -n com.android.fmradio/.FmMainActivity
-sleep 1
-adb shell input tap 550 120
-sleep 1
-adb shell input tap 550 220
-
-echo "FM Radio ON (speaker enabled)"
+if /bin/bash "$(dirname "$0")/../piscripts/fmradiophone"; then
+    echo "FM Radio ON (speaker enabled)"
+else
+    echo "FM radio command failed."
+    exit 1
+fi

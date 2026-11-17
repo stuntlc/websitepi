@@ -2,6 +2,7 @@
 import cgi
 import os
 import re
+import signal
 import subprocess
 
 print("Content-Type: text/plain")
@@ -30,11 +31,35 @@ if not message.isascii() or any(ord(character) < 32 for character in message):
 
 script = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "piscripts", "smsend")
 try:
-    result = subprocess.run(["/bin/bash", script, number, message], capture_output=True, text=True, timeout=45)
+    process = subprocess.Popen(
+        ["/bin/bash", script, number, message], stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE, text=True, start_new_session=True,
+    )
+    stdout, stderr = process.communicate(timeout=45)
 except subprocess.TimeoutExpired:
+    try:
+        os.killpg(process.pid, signal.SIGTERM)
+    except ProcessLookupError:
+        pass
+    try:
+        stdout, stderr = process.communicate(timeout=10)
+        detail = (stdout + stderr).strip()
+    except subprocess.TimeoutExpired:
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        process.communicate()
+        detail = "Forced termination; check the phone's rotation setting."
     print("Status: 504 Gateway Timeout\n")
     print("The modem did not finish sending the SMS.")
+    if detail:
+        print(detail)
+    raise SystemExit
+except OSError as error:
+    print("Status: 502 Bad Gateway\n")
+    print("Could not start the SMS command: " + str(error))
     raise SystemExit
 
-print(("Status: 200 OK" if result.returncode == 0 else "Status: 502 Bad Gateway") + "\n")
-print((result.stdout + result.stderr).strip())
+print(("Status: 200 OK" if process.returncode == 0 else "Status: 502 Bad Gateway") + "\n")
+print((stdout + stderr).strip())
