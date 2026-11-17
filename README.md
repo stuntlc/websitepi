@@ -14,6 +14,27 @@ The web interface adapts to desktop, tablet and phone screens. On smaller screen
 The whole package is run on a diy made battery pack with 8 cells and a small bms that acts as a ups .. and can be carried in a backpack and provide noc on the go and lights and so on for about 4 hours.  it can be put on a wall charger 17v 3a , it then charges until full and then runs off battery again so its not constantly pulling power from the wall , more tests need to be run on the exact hours and power draw 
 it runs super cool and has no cooling fans inside the case the whole thing is passively cooled and runs pretty fast it boots up in around 1 min and can start providing internet in case off emergency 
 
+## Backpack assembly
+
+The current setup is mounted on a backpack, with the LineageOS phone and the
+electronics on the outside. The second photo shows the backpack and components
+before mounting.
+
+![The assembled backpack with the phone and electronics mounted](backpack-assembled.png)
+![The backpack and components before mounting](backpack-components.png)
+
+## Phone video
+
+On the main dashboard, **😄 RICK** opens the Rick Astley video in the phone's
+browser. Paste a YouTube video link and select **Play on phone** to open another
+video. Watch, shortened, Shorts, live and embed video links are supported; extra
+parameters such as timestamps are not retained. The phone must be connected and
+authorized over ADB, unlocked, online, and have a default browser configured.
+Browser or YouTube autoplay restrictions may require pressing play on the phone.
+The dashboard requests autoplay, but cannot override those restrictions.
+The CGI uses the same default phone serial as the camera; set `PHONE_ADB_SERIAL`
+in the web service environment to select another phone.
+
 ## Phone audio
 
 Phone audio integration is currently working and many more plugins 

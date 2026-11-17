@@ -71,6 +71,29 @@ body::before {
   align-items: center;
 }
 
+.video-form {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+}
+
+.video-form input {
+  width: min(320px, 85vw);
+  min-width: 0;
+  padding: 6px 8px;
+  color: #fff;
+  background: #000;
+  border: 1px solid rgba(0, 255, 0, 0.4);
+  border-radius: 4px;
+}
+
+.video-status {
+  color: #00ff66;
+  overflow-wrap: anywhere;
+}
+
 /* --- BUTTONS --- */
 button, a {
   padding: 5px 8px;
@@ -516,6 +539,13 @@ body::before { background: rgba(0, 0, 0, 0.82); }
     <button onclick="location.href='gps.html'">🛰️GPS</button>
     <button onclick="location.href='air.html'">🕊️AIR</button>
   </div>
+  <form class="video-form" id="videoForm">
+    <button type="button" id="rickButton">😄 RICK</button>
+    <label for="youtubeUrl">YouTube link</label>
+    <input id="youtubeUrl" type="url" placeholder="https://www.youtube.com/watch?v=..." required>
+    <button type="submit">📱 Play on phone</button>
+    <span class="video-status" id="videoStatus" role="status" aria-live="polite"></span>
+  </form>
 </div>
 
 <div class="main">
@@ -572,6 +602,31 @@ body::before { background: rgba(0, 0, 0, 0.82); }
 let liveMode = false;
 let rotation = 180;
 let phoneRotations = { rear: 0, front: 0 };
+
+async function playPhoneVideo(url) {
+  const status = document.getElementById("videoStatus");
+  status.textContent = "Opening video on phone...";
+  try {
+    const response = await fetch("/cgi-bin/phone-video.cgi", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ url })
+    });
+    const result = await response.json();
+    if (!response.ok || !result.ok) throw new Error(result.error || "Phone video request failed.");
+    status.textContent = result.message;
+  } catch (error) {
+    status.textContent = "Phone video error: " + error.message;
+  }
+}
+
+document.getElementById("rickButton").addEventListener("click", () => {
+  playPhoneVideo("https://www.youtube.com/watch?v=dQw4w9WgXcQ");
+});
+document.getElementById("videoForm").addEventListener("submit", event => {
+  event.preventDefault();
+  playPhoneVideo(document.getElementById("youtubeUrl").value.trim());
+});
 
 async function loadLatestPhoto() {
   const preview = document.getElementById("preview");
