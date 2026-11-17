@@ -10,9 +10,17 @@ EXPRESSION = """(async () => {
   const video = document.querySelector("video");
   if (document.visibilityState !== "visible" || !video || video.readyState < 2)
     return {ready: false};
+  const player = document.querySelector("#movie_player");
+  if (!player || typeof player.unMute !== "function" || typeof player.isMuted !== "function" ||
+      typeof player.playVideo !== "function")
+    return {ready: false};
+  player.unMute();
+  player.playVideo();
+  const playback = video.play();
   if (!document.fullscreenElement) await video.requestFullscreen();
-  await video.play();
-  return {ready: true, fullscreen: !!document.fullscreenElement};
+  await playback;
+  return {ready: true, fullscreen: !!document.fullscreenElement,
+          muted: player.isMuted() || video.muted};
 })()"""
 
 
@@ -65,13 +73,15 @@ def enter_fullscreen(run_adb, package, video_id):
             except (websocket.WebSocketException, OSError) as error:
                 raise RuntimeError("Browser full-screen connection failed: " + str(error)) from error
             if "error" in reply or reply.get("result", {}).get("exceptionDetails"):
-                raise RuntimeError("The browser could not start full-screen playback.")
+                raise RuntimeError("The browser could not start or unmute full-screen playback.")
             value = reply.get("result", {}).get("result", {}).get("value", {})
             if not isinstance(value, dict):
                 raise RuntimeError("The browser returned an invalid player response.")
             if value.get("ready"):
                 if not value.get("fullscreen"):
                     raise RuntimeError("The browser did not enter full screen.")
+                if value.get("muted") is not False:
+                    raise RuntimeError("The browser could not unmute the video.")
                 return True
         return False
     finally:
