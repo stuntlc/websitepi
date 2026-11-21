@@ -1,12 +1,73 @@
 """Camera photo storage for the isolated website account."""
+from contextlib import contextmanager, redirect_stdout
+import io
 import os
 from pathlib import Path
+import runpy
 import subprocess
 import tempfile
+import types
 import unittest
+from unittest import mock
 
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+class PhoneCameraTests(unittest.TestCase):
+    def run_capture(self, fail_front=False):
+        calls = []
+        locked = False
+        image_id = 0
+
+        @contextmanager
+        def lock():
+            nonlocal locked
+            locked = True
+            try:
+                yield
+            finally:
+                locked = False
+
+        def fake_run(command, **kwargs):
+            nonlocal image_id
+            self.assertTrue(locked)
+            calls.append(command)
+            if "resolve-activity" in command:
+                stdout = "org.lineageos.aperture/.CaptureActivity\n"
+            elif "query" in command:
+                stdout = "_id=%d, _data=/storage/photo.jpg, date_added=1\n" % image_id
+            elif "KEYCODE_CAMERA" in command:
+                if not (fail_front and image_id == 1):
+                    image_id += 1
+                stdout = ""
+            else:
+                stdout = ""
+            return subprocess.CompletedProcess(command, 0, stdout, "")
+
+        output = io.StringIO()
+        with mock.patch.dict("sys.modules", {"phone_lock": types.SimpleNamespace(phone_lock=lock)}), \
+                mock.patch("subprocess.run", side_effect=fake_run), \
+                mock.patch("time.sleep"), redirect_stdout(output):
+            runpy.run_path(str(ROOT / "cgi-bin" / "phone-cameras.cgi"))
+        return calls, output.getvalue()
+
+    def test_explicit_camera_selection_under_phone_lock(self):
+        calls, output = self.run_capture()
+        starts = [call for call in calls if "start" in call and "am" in call]
+        self.assertEqual(len(starts), 2)
+        for call, facing in zip(starts, ("false", "true")):
+            index = call.index("android.intent.extra.USE_FRONT_CAMERA")
+            self.assertEqual(call[index + 1], facing)
+        self.assertEqual(sum("force-stop" in call for call in calls), 4)
+        self.assertIn("rear=", output)
+        self.assertIn("front=", output)
+
+    def test_failed_second_capture_does_not_report_success(self):
+        calls, output = self.run_capture(fail_front=True)
+        self.assertIn("Camera capture failed", output)
+        self.assertNotIn("front=", output)
+        self.assertEqual(sum("force-stop" in call for call in calls), 4)
 
 
 @unittest.skipIf(os.name == "nt", "Camera CGI scripts require Linux")

@@ -1,0 +1,19 @@
+[Unit]
+Description=WebsitePi phone flashlight signals
+After=network.target
+
+[Service]
+User=websitepi
+Group=websitepi
+Environment=HOME=/var/lib/websitepi
+WorkingDirectory=/home/q/websd
+RuntimeDirectory=websitepi-light
+RuntimeDirectoryMode=0700
+ExecStart=/usr/bin/python3 /home/q/websd/piscripts/phone_light_signal.py
+ExecStopPost=/usr/bin/python3 /home/q/websd/piscripts/phone_light_signal.py --cleanup
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=yes
+
+[Install]
+WantedBy=multi-user.target

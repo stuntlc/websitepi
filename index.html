@@ -139,6 +139,58 @@ button:active, a:active {
   transform: translateY(0);
 }
 
+.device-switch {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 34px;
+  padding: 3px 5px;
+  border: 1px solid rgba(0, 255, 0, 0.4);
+  border-radius: 4px;
+  background: #000;
+  white-space: nowrap;
+}
+
+.device-switch-track {
+  display: inline-flex;
+  border: 1px solid #287347;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.device-switch-track button {
+  min-width: 32px;
+  padding: 3px 4px;
+  border: 0;
+  border-radius: 0;
+  font-size: 10px;
+  box-shadow: none;
+}
+
+.device-switch-track button:first-child {
+  color: #ff8080;
+}
+
+.device-switch-track button:last-child {
+  color: #65ff9d;
+}
+
+.device-switch-track button:first-child[aria-pressed="true"] {
+  background: #a32020;
+  color: #fff;
+}
+
+.device-switch-track button:last-child[aria-pressed="true"] {
+  background: #087c36;
+  color: #fff;
+}
+
+.device-switch-track button:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+
 /* --- MAIN CONTENT --- */
 .main {
   position: relative;
@@ -535,8 +587,12 @@ body::before { background: rgba(0, 0, 0, 0.82); }
     <button onclick="startLive()">🎥Live</button>
     <button onclick="runAction('sensor.sh')">📟Volts</button>
     <button onclick="location.href='sensors.html'">📊Sensors</button>
-    <button onclick="runAction('fmradiophone')">📻FM ON</button>
-    <button onclick="runAction('fmphoneoff')">❌FM OFF</button>
+    <div class="device-switch" role="group" aria-label="FM control; highlighted side is the last successful command">
+      <span>FM</span><span class="device-switch-track">
+        <button type="button" aria-label="FM off" aria-pressed="false" onclick="switchDevice(this, 'fmphoneoff', 'FM OFF')">off</button>
+        <button type="button" aria-label="FM on" aria-pressed="false" onclick="switchDevice(this, 'fmradiophone', 'FM ON')">on</button>
+      </span>
+    </div>
     <button onclick="location.href='http://10.0.0.50:8073/#freq=102100000,mod=wfm,sql=-150'">webRF</button>
     <button onclick="runAction('read_light.py')">💡Lumen</button>
   </div>
@@ -545,10 +601,19 @@ body::before { background: rgba(0, 0, 0, 0.82); }
     <button onclick="location.href='websh.html'">⌘WebShell</button>
     <button onclick="location.href='btmic.html'">🎙BT Mic</button>
     <button onclick="location.href='udpmic.html'">📡UDP Mic</button>
-    <button onclick="runAction('relayon.sh')">⚡LED ON</button>
-    <button onclick="runAction('relayoff.sh')">❌LED OFF</button>
-    <button onclick="runAction('phonelight1')">🔦ON</button>
-    <button onclick="runAction('phonelight0')">❌OFF</button>
+    <div class="device-switch" role="group" aria-label="LED control; highlighted side is the last successful command">
+      <span>LED</span><span class="device-switch-track">
+        <button type="button" aria-label="LED off" aria-pressed="false" onclick="switchDevice(this, 'relayoff.sh', 'LED OFF')">off</button>
+        <button type="button" aria-label="LED on" aria-pressed="false" onclick="switchDevice(this, 'relayon.sh', 'LED ON')">on</button>
+      </span>
+    </div>
+    <div class="device-switch" role="group" aria-label="Phone flashlight control; highlighted side is the last successful command">
+      <span>FLASH</span><span class="device-switch-track">
+        <button type="button" aria-label="Phone flashlight off" aria-pressed="false" onclick="switchDevice(this, 'phonelight0', 'Flashlight OFF')">off</button>
+        <button type="button" aria-label="Phone flashlight on" aria-pressed="false" onclick="switchDevice(this, 'phonelight1', 'Flashlight ON')">on</button>
+      </span>
+    </div>
+    <button onclick="location.href='phone-light.html'">🔦Signals</button>
     <button onclick="runAction('meteo.cgi')">🌦Weather</button>
     <button onclick="runAction('cleanup.sh')">🧹Clean</button>
     <button onclick="capturePhoneCameras()">📱Camera</button>
@@ -787,6 +852,26 @@ function startLive() {
 /* -------------------------
    UNIVERSAL ACTION HANDLER
 ------------------------- */
+async function switchDevice(button, script, label) {
+  const buttons = button.parentElement.querySelectorAll("button");
+  const output = document.getElementById("output");
+  closeOutputPanel();
+  buttons.forEach(item => { item.disabled = true; });
+  output.innerText = label + ": sending command...";
+  try {
+    const response = await fetch("/cgi-bin/" + script, { cache: "no-store" });
+    const text = (await response.text()).trim();
+    if (!response.ok || /^ERROR\b/i.test(text)) throw new Error(text || "Device command failed.");
+    buttons.forEach(item => item.setAttribute("aria-pressed", String(item === button)));
+    output.innerText = text || label;
+  } catch (error) {
+    buttons.forEach(item => item.setAttribute("aria-pressed", "false"));
+    output.innerText = label + ": " + error.message;
+  } finally {
+    buttons.forEach(item => { item.disabled = false; });
+  }
+}
+
 function runAction(script) {
   if (script === "capture.sh") {
     // Close output panel if open

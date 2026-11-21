@@ -1,5 +1,7 @@
 #!/bin/bash
-echo "Content-type: text/plain"
-echo ""
-adb shell "echo 1 > /sys/class/leds/flashlight/brightness"
-echo "Flashlight ON"
+if output=$(adb shell "echo 1 > /sys/class/leds/flashlight/brightness" 2>&1); then
+    printf 'Content-Type: text/plain\n\nFlashlight ON\n'
+else
+    printf 'Status: 500 Internal Server Error\nContent-Type: text/plain\n\nERROR: Flashlight could not turn on: %s\n' "$output"
+    exit 1
+fi

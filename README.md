@@ -10,6 +10,9 @@ its also connected via adb to a android phone redmi 9a with lineageos20 and can 
 #portability and so on 
 
 The web interface adapts to desktop, tablet and phone screens. On smaller screens the control dashboard scrolls and uses larger touch targets; maps and dashboard panels resize or stack to fit.
+The FM, LED and phone flashlight controls each have a compact OFF/ON switch.
+Its highlight shows the last successful command in the current page, not a
+live device reading; after a reload neither side is highlighted.
 
 The whole package is run on a diy made battery pack with 8 cells and a small bms that acts as a ups .. and can be carried in a backpack and provide noc on the go and lights and so on for about 4 hours.  it can be put on a wall charger 17v 3a , it then charges until full and then runs off battery again so its not constantly pulling power from the wall , more tests need to be run on the exact hours and power draw 
 it runs super cool and has no cooling fans inside the case the whole thing is passively cooled and runs pretty fast it boots up in around 1 min and can start providing internet in case off emergency 
@@ -77,6 +80,15 @@ and sends the phone app a stop command. The receiver reports port conflicts
 instead of killing unrelated processes. **TEST TONE** checks browser audio
 without using the microphone. Browser audio is delivered through HTTPS; the
 phone-to-Pi UDP microphone link is still unencrypted.
+
+The dashboard's **Signals** page uses the phone flashlight to transmit a typed
+Morse message or a strobe at up to two flashes per second. Morse finishes
+automatically; the strobe continues until **STOP**, and both end with the
+light off. The service also attempts to turn the light off if it stops
+unexpectedly; a disconnected phone can prevent this. Flashing light can trigger
+photosensitive seizures. Stop a signal
+before using the ordinary flashlight buttons or phone camera. Install and
+enable `piscripts/websitepi-phone-light.service` for this feature.
 
 The Bluetooth Mic uses the Pi 5's connected headset and PipeWire. The staged
 script reports a missing Bluetooth microphone rather than restarting Bluetooth

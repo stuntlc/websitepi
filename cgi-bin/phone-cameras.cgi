@@ -2,7 +2,10 @@
 import os
 import re
 import subprocess
+import sys
 import time
+
+from phone_lock import phone_lock
 
 print("Content-Type: text/plain; charset=utf-8")
 print()
@@ -48,37 +51,46 @@ def camera_component():
 
 
 def capture_camera(label, front=False):
-    extra = ["--ez", "android.intent.extra.USE_FRONT_CAMERA", "true"] if front else []
+    extra = ["--ez", "android.intent.extra.USE_FRONT_CAMERA", "true" if front else "false"]
     old_id, old_path, old_date = latest_media()
     component = camera_component()
     package = component.split("/", 1)[0]
     run("shell", "am", "force-stop", package)
-    run("shell", "am", "start", "-W", "-n", component, *extra)
-    time.sleep(3)
-    run("shell", "input", "keyevent", "KEYCODE_CAMERA")
-    time.sleep(3)
-    new_id, source, new_date = latest_media()
-    if not source or int(new_id) <= int(old_id):
-        raise RuntimeError("Camera did not create an image")
-    source = source.strip()
-    if not source.startswith("/storage/"):
-        raise RuntimeError("Camera image path is unavailable")
-    destination = os.path.join(media_dir, "phone-" + label + ".jpg")
-    subprocess.run([adb, "-s", phone, "pull", source, destination], capture_output=True, text=True, timeout=20, check=True)
-    run("shell", "input", "keyevent", "KEYCODE_BACK")
+    try:
+        result = run("shell", "am", "start", "-W", "-n", component, *extra)
+        if "Error:" in result.stdout:
+            raise RuntimeError("Camera launch failed: " + result.stdout.strip())
+        time.sleep(3)
+        run("shell", "input", "keyevent", "KEYCODE_CAMERA")
+        time.sleep(3)
+        new_id, source, new_date = latest_media()
+        if not source or int(new_id) <= int(old_id):
+            raise RuntimeError("Camera did not create an image")
+        source = source.strip()
+        if not source.startswith("/storage/"):
+            raise RuntimeError("Camera image path is unavailable")
+        destination = os.path.join(media_dir, "phone-" + label + ".jpg")
+        subprocess.run([adb, "-s", phone, "pull", source, destination], capture_output=True, text=True, timeout=20, check=True)
+        run("shell", "input", "keyevent", "KEYCODE_BACK")
+    finally:
+        run("shell", "am", "force-stop", package)
     return media_url + "/phone-" + label + ".jpg"
 
 
 try:
-    run("wait-for-device", timeout=20)
-    rear = capture_camera("rear")
-    front = capture_camera("front", front=True)
+    with phone_lock():
+        try:
+            run("wait-for-device", timeout=20)
+            rear = capture_camera("rear")
+            front = capture_camera("front", front=True)
+        except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired, RuntimeError):
+            try:
+                run("shell", "input", "keyevent", "KEYCODE_BACK")
+            except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired) as cleanup_error:
+                print("Camera cleanup failed: " + str(cleanup_error), file=sys.stderr)
+            raise
     print("rear=" + rear)
     print("front=" + front)
     print("Phone rear and front photos captured.")
 except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired, RuntimeError) as error:
-    try:
-        run("shell", "input", "keyevent", "KEYCODE_BACK")
-    except Exception:
-        pass
     print("Camera capture failed: " + str(error))

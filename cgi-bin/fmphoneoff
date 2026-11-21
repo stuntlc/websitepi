@@ -1,7 +1,7 @@
 #!/bin/bash
-echo "Content-Type: text/plain"
-echo ""
-
-adb shell am force-stop com.android.fmradio
-
-echo "FM Radio OFF"
+if output=$(adb shell am force-stop com.android.fmradio 2>&1); then
+    printf 'Content-Type: text/plain\n\nFM Radio OFF\n'
+else
+    printf 'Status: 500 Internal Server Error\nContent-Type: text/plain\n\nERROR: FM radio could not turn off: %s\n' "$output"
+    exit 1
+fi
