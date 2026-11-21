@@ -6,6 +6,11 @@ import subprocess
 import time
 import urllib.request
 
+if os.environ.get("REQUEST_METHOD"):
+    from security_gate import require_access
+    if not require_access("json"):
+        raise SystemExit
+
 MODEM = "http://192.168.100.254"
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ENABLE_SCRIPT = os.path.join(ROOT, "piscripts", "realtek")

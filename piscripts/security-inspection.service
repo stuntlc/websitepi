@@ -1,0 +1,16 @@
+[Unit]
+Description=WebsitePi opt-in Wi-Fi DNS and destination inspection
+After=network.target
+
+[Service]
+Type=simple
+User=root
+Group=websitepi
+RuntimeDirectory=websitepi-inspect
+RuntimeDirectoryMode=0750
+ExecStart=/usr/bin/python3 /usr/local/lib/websitepi-sec/security_inspection.py
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

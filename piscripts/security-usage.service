@@ -1,0 +1,12 @@
+[Unit]
+Description=WebsitePi non-blocking forwarded traffic accounting
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /usr/local/sbin/websitepi-security-usage.py
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

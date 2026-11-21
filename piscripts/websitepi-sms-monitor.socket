@@ -1,0 +1,15 @@
+[Unit]
+Description=WebsitePi SMS monitor start socket
+
+[Socket]
+ListenStream=/run/websitepi/sms-monitor.sock
+SocketUser=websitepi
+SocketGroup=websitepi
+SocketMode=0600
+DirectoryMode=0755
+Accept=yes
+MaxConnections=4
+RemoveOnStop=yes
+
+[Install]
+WantedBy=sockets.target

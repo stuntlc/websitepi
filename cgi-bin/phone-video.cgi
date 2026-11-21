@@ -1,22 +1,20 @@
 #!/usr/bin/env python3
 """Open a YouTube video in the connected phone's default browser."""
 import cgi
-from contextlib import contextmanager
 import json
 import os
 import re
 import shlex
 import subprocess
-import time
 from urllib.parse import parse_qs, urlsplit
 
 from phone_fullscreen import enter_fullscreen
+from phone_lock import phone_lock
 
 ADB = os.environ.get("ADB", "adb")
 PHONE = os.environ.get("PHONE_ADB_SERIAL", "SOEUDQIBF6ZLXK75")
 VIDEO_ID = re.compile(r"^[A-Za-z0-9_-]{11}$")
 COMPONENT = re.compile(r"^[A-Za-z0-9_.]+/[A-Za-z0-9_.$]+$")
-LOCK_PATH = "/tmp/websitepi-phone-ui.lock"
 ROTATION_PATH = "/tmp/websitepi-video-rotation.json"
 
 
@@ -64,22 +62,6 @@ def adb_checked(*args):
     if result.returncode != 0 or "Error:" in result.stdout or "Error:" in result.stderr:
         raise RuntimeError((result.stderr or result.stdout).strip() or "adb command failed.")
     return result
-
-
-@contextmanager
-def phone_lock():
-    import fcntl
-    with open(LOCK_PATH, "w") as lock:
-        deadline = time.monotonic() + 30
-        while True:
-            try:
-                fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-                break
-            except BlockingIOError:
-                if time.monotonic() >= deadline:
-                    raise RuntimeError("Phone controls are busy. Try again.")
-                time.sleep(0.1)
-        yield
 
 
 def save_and_set_landscape():

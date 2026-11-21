@@ -6,6 +6,8 @@ import re
 import subprocess
 import time
 
+from websitepi_paths import log_directory
+
 ADB = os.environ.get("ADB", "adb")
 PHONE_ADB_SERIAL = os.environ.get("PHONE_ADB_SERIAL", "SOEUDQIBF6ZLXK75")
 
@@ -103,7 +105,8 @@ wifi_rssi = next((value for value in reversed(wifi_values) if -127 <= int(value)
 bt_match = re.search(r"enabled:?\s*(true|false)", bt_dump, re.IGNORECASE)
 
 try:
-    with open(os.path.join(os.path.dirname(__file__), "..", "logs", "sensors-debug.log"), "w", encoding="utf-8") as debug_file:
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    with open(os.path.join(log_directory(root), "sensors-debug.log"), "w", encoding="utf-8") as debug_file:
         debug_file.write(sensors)
 except OSError:
     pass

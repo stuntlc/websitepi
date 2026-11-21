@@ -60,18 +60,11 @@ audio { width: 100%; display: block; }
       </div>
       <p class="section-label">POINT THE PHONE APP AT</p>
       <div class="target" id="target">HOST : PORT</div>
-      <p class="phone-link" id="phone-link">PHONE (rndis0): checking...</p>
+      <p class="phone-link" id="phone-link">PHONE (rndis0): not checked</p>
       <div class="controls">
         <button id="start-btn" onclick="startReceiver()">[ START MIC ]</button>
         <button id="stop-btn" onclick="stopReceiver()">[ STOP ]</button>
-        <button onclick="refreshPhoneLink()">[ RESCAN LINK ]</button>
-        <button id="force-btn" onclick="forceUnstick()">[ FORCE UNSTICK ]</button>
-        <button onclick="playTestTone()">[ TEST SOUND ]</button>
-      </div>
-      <p class="section-label">APP CONTROL // ADB</p>
-      <div class="controls">
-        <button onclick="adbControl('start')">[ ADB START APP ]</button>
-        <button onclick="adbControl('stop')">[ ADB STOP APP ]</button>
+        <button id="tone-btn" onclick="playTestTone()">[ TEST TONE ]</button>
       </div>
       <p id="panel-status" aria-live="polite"></p>
     </section>
@@ -91,7 +84,6 @@ const phoneLink = document.getElementById("phone-link");
 const installBanner = document.getElementById("install-banner");
 
 const UDP_PORT = 9100;
-const STREAM_PORT = 9101;
 let resolvedHost = location.hostname;
 
 target.textContent = resolvedHost + " : " + UDP_PORT;
@@ -136,25 +128,19 @@ async function refreshPhoneLink() {
   phoneLink.classList.remove("linked");
   phoneLink.textContent = "PHONE (rndis0): checking...";
   try {
-    const response = await fetch("/cgi-bin/oui.cgi?t=" + Date.now(), { cache: "no-store" });
-    if (!response.ok) throw new Error("HTTP " + response.status);
+    const response = await fetch("/cgi-bin/udpmic-adb.cgi?action=link&t=" + Date.now(), { cache: "no-store" });
     const data = await response.json();
-    const rndis = (((data.phone || {}).interfaces || {}).rndis0) || {};
-    const usb0 = data.usb0 || {};
-    resolvedHost = (usb0.ip || location.hostname).split("/")[0];
+    if (!response.ok || !data.ok) throw new Error(data.error || "USB link check failed.");
+    resolvedHost = data.host;
     target.textContent = resolvedHost + " : " + UDP_PORT;
-    if (rndis.ip) {
-      phoneLink.textContent = `PHONE (rndis0): ${rndis.ip} // ${rndis.mac || "MAC unknown"}`;
-      phoneLink.classList.add("linked");
-    } else {
-      phoneLink.textContent = "PHONE (rndis0): not detected";
-    }
+    phoneLink.textContent = `PHONE (rndis0): ${data.phone}`;
+    phoneLink.classList.add("linked");
   } catch (error) {
     phoneLink.textContent = "PHONE (rndis0): lookup failed";
+    throw new Error("Link scan failed: " + error.message);
   }
 }
 
-const phoneLinkReady = refreshPhoneLink();
 checkAppInstalled();
 
 stream.volume = 1;
@@ -181,7 +167,7 @@ stream.addEventListener("playing", () => {
 });
 
 let receiverBusy = false;
-const receiverButtons = ["start-btn", "stop-btn", "force-btn"].map((id) => document.getElementById(id));
+const receiverButtons = ["start-btn", "stop-btn", "tone-btn"].map((id) => document.getElementById(id));
 
 function setReceiverButtonsDisabled(disabled) {
   receiverButtons.forEach((button) => { button.disabled = disabled; });
@@ -194,6 +180,10 @@ async function startReceiver() {
   try {
     panelStatus.classList.remove("error");
     status.classList.remove("error");
+    panelStatus.textContent = "SCANNING PHONE LINK...";
+    await refreshPhoneLink();
+    panelStatus.textContent = "STOPPING OLD PHONE STREAM...";
+    await requestAdb("stop");
     panelStatus.textContent = "CLEANING UP AND STARTING RECEIVER...";
     const response = await fetch("/cgi-bin/udpmic.cgi?action=start", { cache: "no-store" });
     const text = (await response.text()).trim();
@@ -201,7 +191,6 @@ async function startReceiver() {
     panelStatus.textContent = "RECEIVER STARTED. STARTING PHONE APP...";
     status.textContent = "UDP RECEIVER ONLINE";
 
-    await phoneLinkReady;
     let phoneError = "";
     try {
       await requestAdb("start");
@@ -210,7 +199,7 @@ async function startReceiver() {
     }
 
     const requestStarted = performance.now();
-    const url = "http://" + location.hostname + ":" + STREAM_PORT + "/?t=" + Date.now();
+    const url = "/secure-stream/udp?t=" + Date.now();
     streamTrace = { firstByte: requestStarted };
     stream.src = url;
     stream.volume = 1;
@@ -242,6 +231,7 @@ async function stopReceiver() {
   receiverBusy = true;
   setReceiverButtonsDisabled(true);
   try {
+    panelStatus.classList.remove("error");
     const response = await fetch("/cgi-bin/udpmic.cgi?action=stop", { cache: "no-store" });
     const text = (await response.text()).trim();
     if (!response.ok || /^ERROR/i.test(text)) throw new Error(text || "Could not stop receiver.");
@@ -257,30 +247,6 @@ async function stopReceiver() {
       panelStatus.textContent = "RECEIVER STOPPED. PHONE APP COULD NOT STOP VIA ADB: " + error.message;
       panelStatus.classList.add("error");
     }
-  } catch (error) {
-    panelStatus.textContent = error.message;
-    panelStatus.classList.add("error");
-  } finally {
-    receiverBusy = false;
-    setReceiverButtonsDisabled(false);
-  }
-}
-
-async function forceUnstick() {
-  if (receiverBusy) return;
-  receiverBusy = true;
-  setReceiverButtonsDisabled(true);
-  try {
-    panelStatus.classList.remove("error");
-    panelStatus.textContent = "FORCING CLEANUP...";
-    const response = await fetch("/cgi-bin/udpmic.cgi?action=force", { cache: "no-store" });
-    const text = (await response.text()).trim();
-    if (!response.ok || /^ERROR/i.test(text)) throw new Error(text || "Cleanup failed.");
-    stream.pause();
-    stream.removeAttribute("src");
-    stream.load();
-    panelStatus.textContent = text || "Force cleanup done.";
-    status.textContent = "READY";
   } catch (error) {
     panelStatus.textContent = error.message;
     panelStatus.classList.add("error");
@@ -316,16 +282,6 @@ async function requestAdb(action) {
   const data = await response.json();
   if (!response.ok || !data.ok) throw new Error(data.error || "ADB command failed.");
   return data.message;
-}
-
-async function adbControl(action) {
-  try {
-    panelStatus.classList.remove("error");
-    panelStatus.textContent = await requestAdb(action);
-  } catch (error) {
-    panelStatus.textContent = error.message;
-    panelStatus.classList.add("error");
-  }
 }
 
 async function playTestTone() {

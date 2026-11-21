@@ -529,8 +529,7 @@ body::before { background: rgba(0, 0, 0, 0.82); }
   <h1>SKUNK WORKS NOC</h1>
   
   <div class="controls-row">
-    <button onclick="runAction('netcheck.sh')">🌐Network</button>
-    <button onclick="location.href='network.html'">◎OUI Map</button>
+    <button onclick="location.href='network.html'">◎SEC</button>
     <button onclick="location.href='sms.html'">💬SMS</button>
     <button onclick="runAction('capture.sh')">📸Cheese</button>
     <button onclick="startLive()">🎥Live</button>
@@ -727,13 +726,14 @@ document.getElementById("stopVideoButton").addEventListener("click", () => {
 async function loadLatestPhoto() {
   const preview = document.getElementById("preview");
   const fallback = "/1.jpeg";
+  const mediaPath = location.protocol === "https:" ? "/media/" : "/piscripts/";
   let source = fallback;
 
   try {
-    const response = await fetch("/piscripts/latest.txt?t=" + Date.now(), { cache: "no-store" });
+    const response = await fetch(mediaPath + "latest.txt?t=" + Date.now(), { cache: "no-store" });
     const filename = (await response.text()).trim();
     if (response.ok && /^[A-Za-z0-9_.-]+\.(?:jpg|jpeg)$/i.test(filename)) {
-      source = "/piscripts/" + filename;
+      source = mediaPath + filename;
     }
   } catch (error) {
     // The camera service image remains a valid fallback if the marker is unavailable.
@@ -757,10 +757,18 @@ async function loadLatestPhoto() {
    START LIVE STREAM
 ------------------------- */
 function startLive() {
-  fetch("/cgi-bin/stop_live.sh")
-    .then(() => fetch("/cgi-bin/live.cgi"))
-    .then(r => r.text())
+  if (location.protocol !== "https:") {
+    document.getElementById("output").innerText = "Open HTTPS using this device's trusted client certificate.";
+    return;
+  }
+  fetch("/cgi-bin/live.cgi")
+    .then(async r => {
+      const text = await r.text();
+      if (!r.ok) throw new Error(text || "Live camera could not start.");
+      return text;
+    })
     .then(t => {
+      if (/^ERROR/i.test(t.trim())) throw new Error(t.trim());
       document.getElementById("output").innerText = t;
       const live = document.getElementById("live");
       const preview = document.getElementById("preview");
@@ -770,8 +778,10 @@ function startLive() {
       preview.style.display = "none";
       live.style.display = "block";
       rotateControls.style.display = "flex";
-      live.src = "http://" + location.hostname + ":8000/";
-    });
+      live.onerror = () => { document.getElementById("output").innerText = "Live camera stream unavailable."; };
+      live.src = "/secure-stream/live?t=" + Date.now();
+    })
+    .catch(error => { document.getElementById("output").innerText = error.message; });
 }
 
 /* -------------------------

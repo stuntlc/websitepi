@@ -6,9 +6,13 @@ import re
 import string
 import subprocess
 import sys
+from btmic_ssh import restricted, ssh_command
 
-HOST = "10.0.0.50"
-REMOTE_USER = os.environ.get("BTMIC_SSH_USER", os.environ.get("WEBSSH_USER", "q"))
+if os.environ.get("REQUEST_METHOD"):
+    from security_gate import require_access
+    if not require_access():
+        raise SystemExit
+
 REC_DIR = "/home/q/recorded"
 BASE64_CHARS = set(string.ascii_letters + string.digits + "+/=")
 
@@ -25,15 +29,17 @@ remote_path = REC_DIR + "/" + name
 not_found = "BTMIC_FILE_NOTFOUND"
 quoted = remote_path.replace("'", "'\\''")
 remote_command = "test -f '" + quoted + "' && base64 '" + quoted + "' || echo " + not_found
+if restricted():
+    remote_command = "websitepi-btmic file " + name
 
 try:
     process = subprocess.run(
-        ["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=8", REMOTE_USER + "@" + HOST, remote_command],
+        ssh_command(remote_command),
         capture_output=True,
         text=True,
         timeout=60,
     )
-except (OSError, subprocess.TimeoutExpired) as error:
+except (OSError, ValueError, subprocess.TimeoutExpired) as error:
     print("Status: 502 Bad Gateway")
     print("Content-Type: text/plain; charset=utf-8")
     print()

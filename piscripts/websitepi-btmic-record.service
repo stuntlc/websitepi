@@ -1,0 +1,7 @@
+[Unit]
+Description=WebsitePi Bluetooth microphone recording
+
+[Service]
+Type=simple
+ExecStart=/bin/bash -c "printf 'record\\n1\\n86400\\n' | exec /bin/bash /usr/local/libexec/websitepi-btmic.sh"
+KillMode=control-group

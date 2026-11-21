@@ -6,8 +6,15 @@ import os
 import re
 import tempfile
 
+from websitepi_paths import log_directory
+
+if os.environ.get("REQUEST_METHOD"):
+    from security_gate import require_access
+    if not require_access():
+        raise SystemExit
+
 root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-path = os.path.join(root_dir, "logs", "oui-labels.json")
+path = os.path.join(log_directory(root_dir), "oui-labels.json")
 
 form = cgi.FieldStorage()
 mac = form.getfirst("mac", "").strip().upper().replace("-", ":")

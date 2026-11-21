@@ -8,7 +8,7 @@ import json
 import os
 from urllib.parse import urlparse
 
-KEY_FILE = "/home/q/.websitepi/google_maps_key"
+KEY_FILE = os.environ.get("WEBSITEPI_MAPS_KEY_FILE", "/home/q/.websitepi/google_maps_key")
 
 
 def respond(payload, status=None):

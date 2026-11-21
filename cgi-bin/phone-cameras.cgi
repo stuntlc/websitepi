@@ -8,6 +8,8 @@ print("Content-Type: text/plain; charset=utf-8")
 print()
 
 root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+media_dir = os.environ.get("WEBSITEPI_MEDIA_DIR") or os.path.join(root, "piscripts")
+media_url = "/media" if os.environ.get("WEBSITEPI_MEDIA_DIR") else "/piscripts"
 adb = os.environ.get("ADB", "adb")
 phone = os.environ.get("PHONE_ADB_SERIAL", "SOEUDQIBF6ZLXK75")
 
@@ -61,10 +63,10 @@ def capture_camera(label, front=False):
     source = source.strip()
     if not source.startswith("/storage/"):
         raise RuntimeError("Camera image path is unavailable")
-    destination = os.path.join(root, "piscripts", "phone-" + label + ".jpg")
+    destination = os.path.join(media_dir, "phone-" + label + ".jpg")
     subprocess.run([adb, "-s", phone, "pull", source, destination], capture_output=True, text=True, timeout=20, check=True)
     run("shell", "input", "keyevent", "KEYCODE_BACK")
-    return "/piscripts/phone-" + label + ".jpg"
+    return media_url + "/phone-" + label + ".jpg"
 
 
 try:
@@ -74,7 +76,7 @@ try:
     print("rear=" + rear)
     print("front=" + front)
     print("Phone rear and front photos captured.")
-except (subprocess.CalledProcessError, subprocess.TimeoutExpired, RuntimeError) as error:
+except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired, RuntimeError) as error:
     try:
         run("shell", "input", "keyevent", "KEYCODE_BACK")
     except Exception:

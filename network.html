@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>OUI Recon | Skunk Works</title>
+<title>Security | Skunk Works</title>
 <style>
 :root {
   --ink: #ffffff;
@@ -39,7 +39,7 @@ h1 { margin: 0; color: var(--green); font-size: clamp(22px, 4vw, 36px); letter-s
 button, a { border: 1px solid var(--line); background: #0b2517; color: var(--ink); padding: 9px 13px; font: inherit; text-decoration: none; cursor: pointer; }
 button:hover, a:hover { border-color: var(--green); color: white; }
 .statusbar { display: flex; justify-content: space-between; gap: 16px; color: var(--muted); padding: 14px 0; font-size: 14px; }
-.layout { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 18px; }
+.layout { display: grid; gap: 18px; }
 .panel { background: var(--panel); border: 1px solid var(--line); padding: 16px; box-shadow: 0 0 22px rgba(0,0,0,.45); }
 .panel-title { display: flex; justify-content: space-between; align-items: center; margin: 0 0 14px; color: var(--green); font-size: 14px; letter-spacing: 1px; }
 #topology { display: grid; grid-template-columns: repeat(9, minmax(58px, 1fr)); align-items: center; gap: 8px; min-height: 230px; padding: 20px 8px; border: 1px solid var(--line); background: rgba(1, 12, 7, .55); }
@@ -62,6 +62,26 @@ button:hover, a:hover { border-color: var(--green); color: white; }
 .device { border-left: 3px solid var(--green); padding: 9px 10px; background: rgba(15, 52, 30, .5); }
 .device strong { display: block; color: white; font-size: 15px; }
 .device span { display: block; color: var(--muted); font-size: 14px; margin-top: 4px; overflow-wrap: anywhere; }
+.notice { color: var(--amber); }
+.network-check { width: 100%; height: 360px; border: 1px solid var(--line); margin-top: 10px; background: #000; }
+progress { width: 100%; accent-color: var(--green); }
+.map-shell { overflow-x: auto; border: 1px solid var(--line); padding: 14px; }
+.map-path, .port-row, .client-row { display: flex; flex-wrap: wrap; align-items: stretch; gap: 8px; }
+.map-path { justify-content: center; align-items: center; }
+.map-arrow { color: var(--green); }
+.map-router { margin: 12px auto; max-width: 760px; border: 1px solid var(--green); padding: 12px; }
+.map-router-title { color: var(--green); text-align: center; margin-bottom: 10px; }
+.map-device { min-width: 0; flex: 1 1 140px; text-align: left; overflow-wrap: anywhere; }
+.map-device span { display: block; font-size: 12px; margin-top: 3px; }
+.map-device[aria-pressed="true"] { border-color: var(--green); background: #17462b; }
+.map-port { flex: 1 1 140px; min-width: 0; }
+.map-port .map-device { width: 100%; }
+.map-caption { color: var(--amber); font-size: 12px; margin: 7px 0; }
+.device-detail { margin-top: 12px; border: 1px solid var(--line); padding: 12px; overflow-wrap: anywhere; }
+.device-detail strong { color: var(--green); }
+.detail-line { margin: 5px 0; }
+.detail-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+details.panel > summary { color: var(--green); cursor: pointer; font-weight: bold; }
 #empty, #lease-empty { color: var(--amber); padding: 25px 0; }
 @media (max-width: 760px) {
   main { padding: 18px 12px 30px; }
@@ -78,14 +98,51 @@ button:hover, a:hover { border-color: var(--green); color: white; }
 <main>
   <header>
     <div>
-      <h1>OUI RECON</h1>
-      <p class="subtitle">LOCAL NETWORK TOPOLOGY // ARP OBSERVATION</p>
+      <h1>SECURITY</h1>
+      <p class="subtitle">NETWORK STATUS // TOPOLOGY // OUI OBSERVATION</p>
     </div>
     <div class="actions"><a href="index.html">[ CONTROL ]</a><button id="refresh" type="button">[ RESCAN ]</button></div>
   </header>
   <div class="statusbar"><span id="status">SCANNING...</span><span id="updated">--</span></div>
   <div class="layout">
     <section class="panel">
+      <h2 class="panel-title"><span>ORANGE SIM DATA</span><span>CARRIER</span></h2>
+      <button id="sim-check" type="button">[ CHECK SIM DATA ]</button>
+      <div id="sim-status" class="device" aria-live="polite">Not checked yet.</div>
+      <p class="notice">Checks Orange prepaid on demand. The phone's current app may be interrupted. Verify the carrier's wording before treating this as remaining data.</p>
+      <h2 class="panel-title"><span>SEC ACCESS</span><span>TRUSTED DEVICE</span></h2>
+      <div id="sec-access-status" class="device" aria-live="polite">Checking access...</div>
+      <p class="notice">Access requires HTTPS, a device client certificate and a trusted MAC. MACs can be spoofed; physical port identity is not verified.</p>
+      <p><a id="sec-https-link" hidden>[ OPEN SEC OVER HTTPS ]</a></p>
+      <h2 class="panel-title"><span>CONNECTION DIAGRAM</span><span id="map-count">0 HOSTS</span></h2>
+      <p>Hover, focus or tap a device to see its details. Port positions follow the last confirmed physical setup, not live port detection.</p>
+      <div id="connection-map" class="map-shell" aria-label="Network connection diagram"></div>
+      <div id="selected-device" class="device-detail" aria-live="polite">Select a device to see its OUI and traffic.</div>
+      <p class="notice">The trusted list is an inventory only, not a firewall. Automatic limits and blocking are not active.</p>
+      <h2 class="panel-title"><span>WIFI INSPECTION</span><span>ON DEMAND</span></h2>
+      <div class="detail-actions">
+        <button id="inspect-start" type="button" disabled>[ START INSPECTION ]</button>
+        <button id="inspect-stop" type="button" disabled>[ STOP AND CLEAR ]</button>
+      </div>
+      <div id="inspect-status" class="device" aria-live="polite">A trusted client certificate is required.</div>
+      <p class="notice">Inspects associated Wi-Fi devices, including trusted ones, only while running. Records are held in memory and cleared on stop or service restart. Wi-Fi association data is sampled and may be stale. Switched traffic bypassing the Pi, IPv6 traffic, encrypted DNS, HTTPS URLs and cached lookups are not fully visible. Destination IPs and countries do not prove which website was visited.</p>
+      <p><a href="https://db-ip.com">IP Geolocation by DB-IP</a> // offline country database; approximate.</p>
+      <div id="inspect-events" class="device-list"></div>
+    </section>
+    <details class="panel">
+      <summary>PHONE COUNTERS AND NETWORK DIAGNOSTICS</summary>
+      <h2 class="panel-title"><span>PHONE INTERFACE TRAFFIC</span><span>COUNTERS</span></h2>
+      <div id="traffic">Waiting for scan...</div>
+      <p class="notice">Counters are totals since each phone interface was last reset, not SIM billing totals. Cellular and USB totals overlap; do not add them together.</p>
+      <p class="notice">Per-device SIM accounting, quotas and blocking are not active. The modem switch can bypass the Pi and modem CPU.</p>
+      <h3 class="section-label">FORWARDED INTERNET USE // IPV4</h3>
+      <p class="notice">Approximate client traffic through Pi eth0 to phone usb0, measured from first discovery. It excludes Pi/phone traffic and may miss traffic during discovery, address changes or downtime. It is not a carrier bill.</p>
+      <div id="internet-traffic">Waiting for scan...</div>
+      <h3 class="section-label">WIFI CLIENT TRAFFIC // REALTEK</h3>
+      <p class="notice">These Wi-Fi counters include local traffic and reset on reconnect. They do not measure each client's SIM data.</p>
+      <div id="wifi-traffic">Waiting for scan...</div>
+      <button id="network-check" type="button">[ RUN NETWORK CHECK ]</button>
+      <iframe id="network-check-output" class="network-check" title="Network status check" hidden></iframe>
       <h2 class="panel-title"><span>NETWORK MAP</span><span id="count">0 HOSTS</span></h2>
       <div id="topology" aria-live="polite"></div>
       <div id="ethernet-host" class="ethernet-host" hidden></div>
@@ -95,8 +152,9 @@ button:hover, a:hover { border-color: var(--green); color: white; }
       <h3 class="section-label">MODEM ARP // TELNET 10.0.0.1:8888</h3>
       <div id="modem-neighbors" class="modem-neighbors"></div>
       <div id="modem-empty" hidden>Modem Telnet data unavailable.</div>
-    </section>
-    <aside class="panel">
+    </details>
+    <details class="panel">
+      <summary>LEGACY INVENTORY, ALERTS AND REPORTS</summary>
       <h2 class="panel-title"><span>OUI INVENTORY</span><span>LIVE</span></h2>
       <div id="devices" class="device-list"></div>
       <div id="empty" hidden>No ARP observations returned.</div>
@@ -120,7 +178,7 @@ button:hover, a:hover { border-color: var(--green); color: white; }
       <div id="deep-status"></div>
       <div id="deep-results"></div>
       <pre id="modem-log" style="white-space:pre-wrap;font-size:11px;margin:0"></pre>
-    </aside>
+    </details>
   </div>
 </main>
 <script>
@@ -131,6 +189,22 @@ const updatedElement = document.getElementById("updated");
 const countElement = document.getElementById("count");
 const leasesElement = document.getElementById("leases");
 const modemNeighborsElement = document.getElementById("modem-neighbors");
+const connectionMap = document.getElementById("connection-map");
+const selectedDevice = document.getElementById("selected-device");
+let mapDevices = new Map();
+let selectedKey = "";
+let trustedDevices = null;
+let protectedDevices = new Set();
+let trustError = "";
+let secAuthorized = false;
+let inspection = null;
+let inspectionBusy = false;
+let inspectionRequest = 0;
+if (location.protocol !== "https:") {
+  const secureLink = document.getElementById("sec-https-link");
+  secureLink.href = "https://" + location.hostname + "/network.html";
+  secureLink.hidden = false;
+}
 
 function shortVendor(vendor) {
   return vendor.length > 25 ? vendor.slice(0, 22) + "..." : vendor;
@@ -144,6 +218,213 @@ function escapeHtml(value) {
     "\"": "&quot;"
   })[character]);
 }
+
+function drawConnectionMap(data) {
+  const devices = data.devices || [];
+  const wifi = data.wifi_traffic || {};
+  const stations = wifi.ok ? (wifi.stations || []) : [];
+  const byIp = ip => devices.find(device => device.ip === ip);
+  const byMac = mac => devices.find(device => device.mac.toUpperCase() === mac.toUpperCase());
+  const eth = data.eth0 || {};
+  const phone = data.phone || {};
+  const rndis = (phone.interfaces || {}).rndis0 || {};
+  const phoneIp = rndis.ip || (data.usb0 || {}).peer;
+  const infrastructure = [
+    { key: "phone", title: "PHONE", device: byIp(phoneIp) || { ip: phoneIp, mac: rndis.mac }, note: "USB tether / cellular" },
+    { key: "modem", title: "MODEM", device: byIp("10.0.0.1"), note: "Expected at 10.0.0.1; verify MAC" },
+    { key: "pi2", title: "PORT 1 // PI 2", device: byMac(eth.mac || "") || { ip: eth.ip, mac: eth.mac }, note: "Nearest RJ11 sockets" },
+    { key: "pi5", title: "PORT 2 // PI 5", device: byIp("10.0.0.50"), note: "Expected at 10.0.0.50; verify MAC" },
+    { key: "pc", title: "PORT 4 // WINDOWS PC", device: byIp("10.0.0.10"), note: "Expected at 10.0.0.10; verify MAC" },
+    { key: "switch", title: "REALTEK SWITCH", device: byIp("192.168.100.254"), note: "Management address; verify MAC" }
+  ];
+  const usedMacs = new Set(infrastructure.map(item => (item.device || {}).mac).filter(Boolean).map(mac => mac.toUpperCase()));
+  const usedIps = new Set(infrastructure.map(item => (item.device || {}).ip).filter(Boolean).map(ip => ip.split("/")[0]));
+  mapDevices = new Map();
+  for (const item of infrastructure) mapDevices.set(item.key, item);
+  for (const station of stations) {
+    const mac = station.mac.toUpperCase();
+    if (usedMacs.has(mac)) continue;
+    usedMacs.add(mac);
+    const device = byMac(mac) || { mac };
+    if (device.ip) usedIps.add(device.ip);
+    mapDevices.set("wifi:" + mac, { key: "wifi:" + mac, title: device.label || device.hostname || device.ip || mac, device, station, note: "Associated Wi-Fi client" });
+  }
+  for (const device of devices) {
+    const mac = device.mac.toUpperCase();
+    if (usedMacs.has(mac) || usedIps.has(device.ip)) continue;
+    usedMacs.add(mac);
+    mapDevices.set("other:" + mac, { key: "other:" + mac, title: device.label || device.hostname || device.ip || mac, device, note: "Connection not determined" });
+  }
+  const button = item => `<button type="button" class="map-device" data-map-key="${escapeHtml(item.key)}" aria-pressed="${item.key === selectedKey}"><strong>${escapeHtml(item.title)}</strong><span>${escapeHtml(item.note)}</span></button>`;
+  const ports = ["pi2", "pi5", null, "pc"].map((key, index) => key
+    ? `<div class="map-port">${button(mapDevices.get(key))}</div>`
+    : `<div class="map-port device"><strong>PORT ${index + 1} // SPARE</strong><span>Previously empty; current status unknown</span></div>`).join("");
+  const clients = Array.from(mapDevices.values()).filter(item => item.key.startsWith("wifi:"));
+  const others = Array.from(mapDevices.values()).filter(item => item.key.startsWith("other:"));
+  connectionMap.innerHTML = `<div class="map-path"><span>INTERNET</span><span class="map-arrow">&lt;--&gt;</span>${button(mapDevices.get("phone"))}<span class="map-arrow">&lt;-- USB VIA PI 2 --&gt;</span></div>
+    <div class="map-router"><div class="map-router-title">+--- MODEM / REALTEK SWITCH ---+</div>
+    <div class="client-row">${button(mapDevices.get("modem"))}${button(mapDevices.get("switch"))}</div>
+    <p class="map-caption">ETHERNET PORTS // LEFT TO RIGHT FROM RJ11</p><div class="port-row">${ports}</div>
+    <p class="map-caption">WIFI CLIENTS // ${wifi.ok ? clients.length + " ASSOCIATED" : "ASSOCIATION DATA UNAVAILABLE"}</p>
+    <div class="client-row">${clients.map(button).join("") || (wifi.ok ? "No other associated clients reported." : escapeHtml(wifi.error || "Not reported."))}</div></div>
+    <p class="map-caption">OTHER OBSERVED DEVICES // CONNECTION UNKNOWN</p><div class="client-row">${others.map(button).join("") || "None reported."}</div>`;
+  document.getElementById("map-count").textContent = `${devices.length} OBSERVED`;
+  if (selectedKey && mapDevices.has(selectedKey)) showDevice(selectedKey);
+  else {
+    selectedKey = "";
+    selectedDevice.textContent = "Select a device to see its OUI and traffic.";
+  }
+}
+
+function showDevice(key) {
+  const item = mapDevices.get(key);
+  if (!item) return;
+  selectedKey = key;
+  connectionMap.querySelectorAll(".map-device").forEach(button => button.setAttribute("aria-pressed", String(button.dataset.mapKey === key)));
+  const device = item.device || {};
+  const data = window.networkData || {};
+  const mac = (device.mac || "").toUpperCase();
+  const usage = data.internet_usage || {};
+  const fresh = usage.ok && Number.isFinite(usage.updated_at) && Number.isFinite(Date.parse(data.scanned_at)) &&
+    Math.abs(Date.parse(data.scanned_at) / 1000 - usage.updated_at) <= 45;
+  const count = fresh && usage.devices ? usage.devices[mac] : null;
+  const formatBytes = bytes => (bytes / (1024 * 1024)).toFixed(2) + " MiB";
+  const traffic = !fresh ? "Unavailable or stale" : count
+    ? `Upload ${formatBytes(count.up_bytes)} / download ${formatBytes(count.down_bytes)}`
+    : "No forwarded traffic recorded";
+  const wifi = item.station ? `AP TX ${formatBytes(item.station.tx_bytes)} / RX ${formatBytes(item.station.rx_bytes)} (includes local traffic; resets on reconnect)` : "Not reported for this device";
+  const trust = trustError ? "Unavailable: " + trustError + " (rescan to retry)" : trustedDevices === null ? "Loading" :
+    protectedDevices.has(mac) ? "Protected infrastructure" : trustedDevices.has(mac) ? "Trusted inventory" : "Not in trusted inventory";
+  const recent = inspection && inspection.active && secAuthorized
+    ? inspection.events.filter(event => event.mac === mac).slice(-3).reverse() : [];
+  const activity = recent.map(event => event.kind === "dns" ? `DNS ${event.domain}` : event.kind === "answer"
+    ? `${event.domain} -> ${event.ip} // ${event.country}` : `${event.protocol} ${event.ip}:${event.port} // ${event.country}`);
+  selectedDevice.innerHTML = `<strong>${escapeHtml(item.title)}</strong>
+    <div class="detail-line">${escapeHtml(item.note)}</div>
+    <div class="detail-line">IP: ${escapeHtml(device.ip || "Not observed")} // MAC: ${escapeHtml(mac || "Not observed")}</div>
+    <div class="detail-line">OUI: ${escapeHtml(device.oui || (mac ? mac.replace(/:/g, "").slice(0, 6) : "Unknown"))} // ${escapeHtml(device.vendor || "Unknown vendor")}${device.randomized_mac ? " // Randomized MAC" : ""}</div>
+    <div class="detail-line">Forwarded IPv4: ${escapeHtml(traffic)} (approximate, not carrier billing)</div>
+    <div class="detail-line">Wi-Fi: ${escapeHtml(wifi)}</div>
+    <div class="detail-line">Trust: ${escapeHtml(trust)} (not a firewall)</div>
+    <div class="detail-line">DNS / destination inspection: ${!secAuthorized ? "Trusted client certificate required" : inspection && inspection.active ? "Running; see results below" : "Not running"}</div>
+    ${activity.map(line => `<div class="detail-line">${escapeHtml(line)}</div>`).join("")}
+    ${mac ? `<div class="detail-actions"><button type="button" class="name-btn" data-mac="${escapeHtml(mac)}" data-label="${escapeHtml(device.label || "")}">[ NAME DEVICE ]</button>
+    <button type="button" class="trust-btn" data-mac="${escapeHtml(mac)}" ${trustedDevices === null || trustError || protectedDevices.has(mac) ? "disabled" : ""}>[ ${protectedDevices.has(mac) ? "PROTECTED" : trustedDevices && trustedDevices.has(mac) ? "REMOVE TRUST" : "MARK TRUSTED"} ]</button></div>` : ""}`;
+}
+
+async function loadTrust() {
+  if (!secAuthorized) {
+    trustedDevices = null;
+    trustError = "Trusted client certificate and device required";
+    if (selectedKey) showDevice(selectedKey);
+    return;
+  }
+  try {
+    const response = await fetch("/cgi-bin/security-trust.cgi", { cache: "no-store" });
+    const result = await response.json();
+    if (!response.ok || !result.ok || !Array.isArray(result.devices) || !Array.isArray(result.protected)) throw new Error(result.error || "Invalid trusted-device response");
+    trustedDevices = new Set(result.devices);
+    protectedDevices = new Set(result.protected);
+    trustError = "";
+  } catch (error) {
+    trustedDevices = null;
+    trustError = error.message;
+  }
+  if (selectedKey) showDevice(selectedKey);
+}
+
+async function loadAccess() {
+  const status = document.getElementById("sec-access-status");
+  try {
+    const response = await fetch("/cgi-bin/security-access.cgi", { cache: "no-store" });
+    const result = await response.json();
+    if (!response.ok || !result.ok) throw new Error(result.error || "Access check failed");
+    secAuthorized = result.authorized === true;
+    status.textContent = secAuthorized ? "AUTHORIZED FOR THIS TRUSTED BROWSER" : "NOT AUTHORIZED";
+  } catch (error) {
+    secAuthorized = false;
+    status.textContent = "ACCESS UNAVAILABLE: " + error.message;
+  }
+  await loadTrust();
+  await refreshInspection();
+  if (secAuthorized) await scan();
+}
+
+function renderInspection() {
+  const status = document.getElementById("inspect-status");
+  const events = document.getElementById("inspect-events");
+  document.getElementById("inspect-start").disabled = !secAuthorized || inspectionBusy || (inspection && inspection.active);
+  document.getElementById("inspect-stop").disabled = !secAuthorized || inspectionBusy;
+  if (!secAuthorized) {
+    status.textContent = "A trusted client certificate is required.";
+    events.textContent = "";
+  } else if (!inspection) {
+    status.textContent = "Inspection status unavailable.";
+    events.textContent = "";
+  } else {
+    status.textContent = inspection.active
+      ? `RUNNING // ${inspection.stations} WIFI STATION(S) // ${inspection.station_error || "association data available"}`
+      : "STOPPED // RESULTS CLEARED" + (inspection.station_error ? " // " + inspection.station_error : "");
+    const entries = inspection.events.slice().reverse();
+    events.innerHTML = entries.map(event => {
+      const device = ((window.networkData || {}).devices || []).find(item => item.mac.toUpperCase() === event.mac);
+      const label = device ? (device.label || device.hostname || device.ip || event.mac) : event.mac;
+      const detail = event.kind === "dns" ? `DNS QUERY ${event.domain}` : event.kind === "answer"
+        ? `DNS ANSWER ${event.domain} -> ${event.ip} // ${event.country}`
+        : `${event.protocol} ${event.ip}:${event.port} // ${event.country}`;
+      return `<article class="device"><strong>${escapeHtml(label)}</strong><span>${escapeHtml(new Date(event.time * 1000).toLocaleTimeString())} // ${escapeHtml(detail)}</span></article>`;
+    }).join("") || (inspection.active ? "NO OBSERVATIONS YET" : "");
+  }
+  if (selectedKey) showDevice(selectedKey);
+}
+
+async function refreshInspection(action) {
+  if (!secAuthorized) {
+    inspection = null;
+    renderInspection();
+    return;
+  }
+  if (inspectionBusy) return;
+  const request = ++inspectionRequest;
+  if (action) {
+    inspectionBusy = true;
+    renderInspection();
+  }
+  let message = "";
+  try {
+    const options = action ? { method: "POST", body: new URLSearchParams({ action }) } : { cache: "no-store" };
+    const response = await fetch("/cgi-bin/security-inspect.cgi", options);
+    const result = await response.json();
+    if (!response.ok || !result.ok) throw new Error(result.error || "Inspection failed");
+    if (request !== inspectionRequest) return;
+    inspection = result;
+  } catch (error) {
+    if (request !== inspectionRequest) return;
+    inspection = null;
+    message = "INSPECTION ERROR: " + error.message;
+  } finally {
+    if (action) inspectionBusy = false;
+  }
+  renderInspection();
+  if (message) document.getElementById("inspect-status").textContent = message;
+}
+
+document.getElementById("inspect-start").addEventListener("click", () => refreshInspection("start"));
+document.getElementById("inspect-stop").addEventListener("click", () => refreshInspection("stop"));
+
+connectionMap.addEventListener("click", event => {
+  const button = event.target.closest("[data-map-key]");
+  if (button) showDevice(button.dataset.mapKey);
+});
+connectionMap.addEventListener("focusin", event => {
+  const button = event.target.closest("[data-map-key]");
+  if (button) showDevice(button.dataset.mapKey);
+});
+connectionMap.addEventListener("pointerover", event => {
+  if (event.pointerType !== "mouse") return;
+  const button = event.target.closest("[data-map-key]");
+  if (button && !button.contains(event.relatedTarget)) showDevice(button.dataset.mapKey);
+});
 
 function drawMap(devices) {
   const usb0 = window.networkData.usb0 || {};
@@ -202,10 +483,50 @@ function renderModem(data) {
 function render(data) {
   window.networkData = data;
   const devices = data.devices || [];
+  const traffic = (data.phone || {}).traffic || {};
+  const formatBytes = bytes => (bytes / (1024 * 1024)).toFixed(2) + " MiB";
+  document.getElementById("traffic").innerHTML = ["ccmni0", "rndis0"].map(name => {
+    const counter = traffic[name];
+    if (!counter || counter.error) return `<div class="device"><strong>${name.toUpperCase()}</strong><span>UNAVAILABLE: ${escapeHtml(counter ? counter.error : "not reported")}</span></div>`;
+    return `<div class="device"><strong>${name.toUpperCase()} // ${name === "ccmni0" ? "CELLULAR" : "USB TETHER"}</strong><span>RX ${formatBytes(counter.rx_bytes)} // TX ${formatBytes(counter.tx_bytes)}</span></div>`;
+  }).join("");
+  const wifi = data.wifi_traffic;
+  const usage = data.internet_usage;
+  const internetTraffic = document.getElementById("internet-traffic");
+  if (!usage || !usage.ok) {
+    internetTraffic.textContent = "INTERNET COUNTERS UNAVAILABLE: " + (usage ? usage.error : "not reported");
+  } else if (!Number.isFinite(usage.updated_at) || !Number.isFinite(Date.parse(data.scanned_at)) ||
+             Math.abs(Date.parse(data.scanned_at) / 1000 - usage.updated_at) > 45) {
+    internetTraffic.textContent = "INTERNET COUNTERS STALE: monitoring service may be stopped.";
+  } else {
+    const entries = Object.entries(usage.devices).sort((a, b) =>
+      (b[1].up_bytes + b[1].down_bytes) - (a[1].up_bytes + a[1].down_bytes));
+    const maximum = entries.length ? Math.max(1, entries[0][1].up_bytes + entries[0][1].down_bytes) : 1;
+    internetTraffic.innerHTML = entries.length ? entries.map(([mac, count]) => {
+      const device = devices.find(item => item.mac.toUpperCase() === mac);
+      const label = device ? (device.label || device.hostname || device.ip) : count.ip;
+      return `<article class="device"><strong>${escapeHtml(label)} // ${escapeHtml(mac)}</strong><span>UPLOAD ${formatBytes(count.up_bytes)} // DOWNLOAD ${formatBytes(count.down_bytes)}</span><progress max="${maximum}" value="${count.up_bytes + count.down_bytes}" aria-label="Relative forwarded internet traffic"></progress></article>`;
+    }).join("") : "NO FORWARDED CLIENT TRAFFIC RECORDED YET";
+  }
+  const wifiTraffic = document.getElementById("wifi-traffic");
+  if (!wifi || !wifi.ok) {
+    wifiTraffic.textContent = "WIFI COUNTERS UNAVAILABLE: " + (wifi ? wifi.error : "not reported");
+  } else if (!wifi.stations.length) {
+    wifiTraffic.textContent = "NO WIFI CLIENTS REPORTED";
+  } else {
+    const stations = wifi.stations.slice().sort((a, b) => (b.tx_bytes + b.rx_bytes) - (a.tx_bytes + a.rx_bytes));
+    const maximum = Math.max(1, stations[0].tx_bytes + stations[0].rx_bytes);
+    wifiTraffic.innerHTML = stations.map(station => {
+      const device = devices.find(item => item.mac.toUpperCase() === station.mac);
+      const label = device ? (device.label || device.hostname || device.ip) : station.mac;
+      return `<article class="device"><strong>${escapeHtml(label)} // ${escapeHtml(station.mac)}</strong><span>${escapeHtml(station.radio)} // AP TX ${formatBytes(station.tx_bytes)} // AP RX ${formatBytes(station.rx_bytes)}</span><progress max="${maximum}" value="${station.tx_bytes + station.rx_bytes}" aria-label="Relative Wi-Fi traffic"></progress></article>`;
+    }).join("");
+  }
   countElement.textContent = `${devices.length} HOST${devices.length === 1 ? "" : "S"}`;
   const database = data.oui_database && data.oui_database !== "none" ? "OUI DB: READY" : "OUI DB: NOT FOUND";
   statusElement.textContent = `SOURCE: ${(data.source || "ARP").toUpperCase()} // ${devices.length} RESPONSES // ${database}`;
   updatedElement.textContent = new Date(data.scanned_at).toLocaleTimeString();
+  drawConnectionMap(data);
   drawMap(devices);
   renderLeases(devices, (data.eth0 || {}).gateway || "10.0.0.1");
   const modemEth = renderModem(data);
@@ -249,7 +570,12 @@ document.getElementById("alert-form").addEventListener("submit", async event => 
 });
 
 async function scan() {
+  if (!secAuthorized) {
+    statusElement.textContent = "HTTPS AND A TRUSTED CLIENT CERTIFICATE ARE REQUIRED";
+    return;
+  }
   statusElement.textContent = "SCANNING...";
+  if (trustError) loadTrust();
   try {
     const response = await fetch("/cgi-bin/oui.cgi?t=" + Date.now(), { cache: "no-store" });
     if (!response.ok) throw new Error("HTTP " + response.status);
@@ -329,18 +655,71 @@ document.getElementById("deep").addEventListener("click", async () => {
   }
 });
 
-devicesElement.addEventListener("click", async event => {
+async function nameDevice(event) {
   const button = event.target.closest(".name-btn");
   if (!button) return;
   const label = prompt("Name for " + button.dataset.mac + " (e.g. My PC, My phone; empty clears):", button.dataset.label);
   if (label === null) return;
-  const response = await fetch("/cgi-bin/oui-label.cgi", { method: "POST", body: new URLSearchParams({ mac: button.dataset.mac, label }) });
-  if (response.ok) scan(); else alert((await response.text()).trim());
+  try {
+    const response = await fetch("/cgi-bin/oui-label.cgi", { method: "POST", body: new URLSearchParams({ mac: button.dataset.mac, label }) });
+    const type = response.headers.get("content-type") || "";
+    const detail = type.startsWith("text/plain") ? (await response.text()).trim() : "";
+    if (response.ok && detail === "Saved") scan();
+    else {
+      alert(detail || "Could not save device name: unexpected response (HTTP " + response.status + ")");
+    }
+  } catch (error) {
+    alert("Could not save device name: " + error.message);
+  }
+}
+devicesElement.addEventListener("click", nameDevice);
+selectedDevice.addEventListener("click", nameDevice);
+selectedDevice.addEventListener("click", async event => {
+  const button = event.target.closest(".trust-btn");
+  if (!button || !trustedDevices) return;
+  button.disabled = true;
+  try {
+    const response = await fetch("/cgi-bin/security-trust.cgi", {
+      method: "POST",
+      body: new URLSearchParams({ mac: button.dataset.mac, action: trustedDevices.has(button.dataset.mac) ? "remove" : "add" })
+    });
+    const result = await response.json();
+    if (!response.ok || !result.ok || !Array.isArray(result.devices) || !Array.isArray(result.protected)) throw new Error(result.error || "Invalid trusted-device response");
+    trustedDevices = new Set(result.devices);
+    protectedDevices = new Set(result.protected);
+    trustError = "";
+  } catch (error) {
+    trustError = error.message;
+  }
+  if (selectedKey) showDevice(selectedKey);
 });
 
 document.getElementById("refresh").addEventListener("click", scan);
+document.getElementById("sim-check").addEventListener("click", async event => {
+  const button = event.currentTarget;
+  const status = document.getElementById("sim-status");
+  button.disabled = true;
+  status.textContent = "CHECKING ORANGE AND CLOSING THE PHONE DIALOG...";
+  try {
+    const response = await fetch("/cgi-bin/phone-ussd.cgi", { method: "POST", cache: "no-store" });
+    const result = await response.json();
+    if (!response.ok || !result.ok) throw new Error(result.error || "HTTP " + response.status);
+    status.textContent = result.data + " // CHECKED " + new Date(result.checked_at * 1000).toLocaleString();
+  } catch (error) {
+    status.textContent = "SIM CHECK FAILED: " + error.message;
+  } finally {
+    button.disabled = false;
+  }
+});
+document.getElementById("network-check").addEventListener("click", () => {
+  const output = document.getElementById("network-check-output");
+  output.hidden = false;
+  output.src = "/cgi-bin/netcheck.sh?t=" + Date.now();
+});
 scan();
+loadAccess();
 setInterval(scan, 60000);
+setInterval(() => { if (secAuthorized && inspection && inspection.active && !inspectionBusy) refreshInspection(); }, 5000);
 </script>
 </body>
 </html>

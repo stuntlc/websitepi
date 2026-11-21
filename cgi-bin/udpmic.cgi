@@ -1,10 +1,13 @@
 #!/bin/bash
+if [ -n "${REQUEST_METHOD:-}" ]; then
+  python3 "$(dirname "$0")/security_gate.py" text || exit 0
+fi
 echo "Content-type: text/plain"
 echo ""
 
 ACTION=$(echo "$QUERY_STRING" | sed -n 's/^.*action=\([^&]*\).*$/\1/p')
-LOG=/home/q/websd/logs/udpmic.log
-LOCK=/tmp/udpmic.lock
+LOG="${WEBSITEPI_LOG_DIR:-/home/q/websd/logs}/udpmic.log"
+LOCK=/run/websitepi/udpmic.lock
 PATTERN='[p]ython3? /home/q/websd/piscripts/udpmic[.]py([[:space:]]|$)'
 
 port_busy() {

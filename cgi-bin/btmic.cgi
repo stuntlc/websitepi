@@ -3,21 +3,25 @@ import cgi
 import json
 import os
 import subprocess
+from btmic_ssh import restricted, ssh_command
 
-HOST = "10.0.0.50"
-REMOTE_USER = os.environ.get("BTMIC_SSH_USER", os.environ.get("WEBSSH_USER", "q"))
+if os.environ.get("REQUEST_METHOD"):
+    from security_gate import require_access
+    if not require_access("json"):
+        raise SystemExit
+
 REMOTE_SCRIPT = "/home/q/btmic.sh"
 
 
 def run_remote(command, timeout=20):
     try:
         process = subprocess.run(
-            ["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=8", REMOTE_USER + "@" + HOST, command],
+            ssh_command(command),
             capture_output=True,
             text=True,
             timeout=timeout,
         )
-    except OSError as error:
+    except (OSError, ValueError) as error:
         raise ConnectionError(str(error)) from error
     return process.returncode, (process.stdout + process.stderr).strip()
 
@@ -58,7 +62,8 @@ if action not in commands:
     raise SystemExit
 
 try:
-    returncode, output = run_remote(commands[action], timeout=30 if action == "list" else 20)
+    command = "websitepi-btmic " + action if restricted() else commands[action]
+    returncode, output = run_remote(command, timeout=30 if action == "list" else 20)
 except ConnectionError as error:
     respond({"ok": False, "error": "Pi5 connection failed: " + str(error)}, "502 Bad Gateway")
     raise SystemExit

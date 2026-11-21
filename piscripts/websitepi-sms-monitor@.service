@@ -1,0 +1,15 @@
+[Unit]
+Description=Start WebsitePi SMS monitor
+
+[Service]
+Type=oneshot
+ExecStart=/bin/systemctl start smschecker.service
+StandardInput=socket
+StandardOutput=journal
+StandardError=journal
+TimeoutStartSec=20
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+RestrictAddressFamilies=AF_UNIX

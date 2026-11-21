@@ -82,7 +82,7 @@ if __name__ == "__main__":
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
             sock.bind(("0.0.0.0", UDP_PORT))
-            httpd = ThreadingHTTPServer(("", HTTP_PORT), StreamHandler)
+            httpd = ThreadingHTTPServer(("127.0.0.1", HTTP_PORT), StreamHandler)
             try:
                 threading.Thread(target=udp_receiver, args=(sock,), daemon=True).start()
                 httpd.serve_forever()

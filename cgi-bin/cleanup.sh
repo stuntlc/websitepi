@@ -2,7 +2,11 @@
 echo "Content-type: text/plain"
 echo ""
 
-cd /home/q/websd/piscripts || exit 1
+if ! cd "${WEBSITEPI_MEDIA_DIR:-/home/q/websd/piscripts}"; then
+    echo "Photo directory unavailable"
+    exit 1
+fi
+shopt -s nullglob
 
 # Find newest .jpg or .jpeg (excluding protected files)
 NEWEST=$(ls -t *.jpg *.jpeg 2>/dev/null \

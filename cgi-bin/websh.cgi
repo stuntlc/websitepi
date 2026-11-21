@@ -1,32 +1,21 @@
 #!/usr/bin/env python3
 import cgi
-import http.cookies
 import os
 import re
 import subprocess
 import telnetlib
 import time
 
-PI_HOST = "10.0.0.11"
+from security_access import authorized, same_origin
 
-SESSION_DIR = "/tmp/websitepi-websh-sessions"
-
-cookies = http.cookies.SimpleCookie(os.environ.get("HTTP_COOKIE", ""))
-session = cookies.get("websh_session")
-valid_session = False
-if session and session.value.replace("_", "").replace("-", "").isalnum():
-    session_path = os.path.join(SESSION_DIR, session.value)
-    try:
-        with open(session_path, encoding="ascii") as session_file:
-            valid_session = time.time() - int(session_file.read()) < 1800
-    except (FileNotFoundError, ValueError, OSError):
-        pass
-
-if not valid_session:
-    print("Status: 401 Unauthorized")
-    print("Content-Type: text/plain; charset=utf-8")
-    print()
-    print("WebShell login required.")
+try:
+    allowed = same_origin() and authorized()
+except (OSError, ValueError, RuntimeError) as error:
+    allowed = False
+if not allowed:
+    print("Status: 403 Forbidden")
+    print("Content-Type: text/plain; charset=utf-8\n")
+    print("Authorize this trusted browser on SEC first.")
     raise SystemExit
 
 print("Content-Type: text/plain; charset=utf-8")
@@ -62,14 +51,12 @@ try:
         print(output.rstrip() or "Modem returned no output.")
         raise SystemExit
     elif target == "pi":
-        username = os.environ.get("WEBSSH_USER", "q")
-        # Non-interactive ssh doesn't source .bashrc, so sbin (ifconfig, ip, etc.) is missing from PATH by default.
-        remote_command = "export PATH=\"/usr/local/sbin:/usr/sbin:/sbin:$PATH\"; " + command
         process = subprocess.run(
-            ["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=8", username + "@" + PI_HOST, remote_command],
+            ["/bin/sh", "-c", command],
             capture_output=True,
             text=True,
             timeout=15,
+            env=dict(os.environ, PATH="/usr/local/sbin:/usr/sbin:/sbin:" + os.environ.get("PATH", "")),
         )
         output = (process.stdout + process.stderr).replace("\r", "")
         print(output.rstrip() or "Command returned no output.")
@@ -88,7 +75,7 @@ except OSError as error:
         print("Could not connect to modem Telnet: " + str(error))
         raise SystemExit
     if target == "pi":
-        print("Could not connect to Pi via SSH: " + str(error))
+        print("Could not run Pi command: " + str(error))
         raise SystemExit
     if isinstance(error, FileNotFoundError):
         print("Required command is unavailable: " + error.filename)

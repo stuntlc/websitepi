@@ -1,4 +1,7 @@
 #!/bin/bash
+if [ -n "${REQUEST_METHOD:-}" ]; then
+    python3 "$(dirname "$0")/security_gate.py" json || exit 0
+fi
 printf 'Content-Type: application/json\r\n\r\n'
 
 if command -v arp-scan >/dev/null 2>&1; then
@@ -29,32 +32,25 @@ SCAN_DATA="$scan_data" SCAN_SOURCE="${scan_source:-none}" USB0_MAC="$usb0_mac" U
 import json
 import os
 import re
+import sys
 from datetime import datetime, timezone
 
+root_dir = os.path.dirname(os.path.dirname(os.path.abspath(os.environ.get("SCRIPT_FILENAME") or "/home/q/websd/cgi-bin/oui.cgi")))
+sys.path.insert(0, os.path.join(root_dir, "piscripts"))
+sys.path.insert(0, os.path.join(root_dir, "cgi-bin"))
+from oui_vendor import device_type, load_vendors
+from websitepi_paths import log_directory
+
+data_dir = log_directory(root_dir)
+
 oui_files = (
+    os.path.join(data_dir, "ieee-oui.csv"),
     "/usr/share/arp-scan/ieee-oui.txt",
     "/usr/share/ieee-data/oui.txt",
     "/usr/share/wireshark/manuf",
     "/usr/share/nmap/nmap-mac-prefixes",
 )
-vendors = {}
-database_files = []
-for filename in oui_files:
-    try:
-        loaded = False
-        with open(filename, encoding="utf-8", errors="ignore") as oui_file:
-            for line in oui_file:
-                ieee_match = re.match(r"^\s*([0-9A-Fa-f]{6})\s+\(base 16\)\s+(.+?)\s*$", line)
-                manuf_match = re.match(r"^\s*([0-9A-Fa-f]{2}(?::[0-9A-Fa-f]{2}){2}|[0-9A-Fa-f]{6})\s+(?:\([^)]*\)\s+)?(.+?)\s*$", line)
-                match = ieee_match or manuf_match
-                if match:
-                    prefix = re.sub(r"[-:]", "", match.group(1)).upper()[:6]
-                    vendors.setdefault(prefix, match.group(2).strip())
-                    loaded = True
-        if loaded:
-            database_files.append(filename)
-    except OSError:
-        continue
+vendors, database_files = load_vendors(oui_files)
 
 devices = []
 seen = set()
@@ -155,22 +151,6 @@ for line in os.environ.get("PHONE_NEIGH", "").splitlines():
         if mac_index < len(fields):
             phone_neighbors.append({"ip": fields[0], "mac": fields[mac_index].upper(), "interface": fields[2], "state": fields[-1]})
 
-def device_type(vendor):
-    name = vendor.lower()
-    groups = (
-        (("apple", "iphone", "ipad"), "Apple device"),
-        (("samsung", "xiaomi", "huawei", "oneplus", "motorola"), "Android phone/tablet"),
-        (("raspberry", "rasp pi"), "Raspberry Pi"),
-        (("google", "nest"), "Google/Nest device"),
-        (("amazon", "ring"), "Amazon/IoT device"),
-        (("intel", "realtek", "broadcom", "mediatek"), "Network device"),
-        (("microsoft", "dell", "lenovo", "hewlett", "hp", "asus"), "Computer"),
-    )
-    for names, label in groups:
-        if any(name in vendor_name for vendor_name in names):
-            return label
-    return "Unknown device"
-
 for row in os.environ.get("SCAN_DATA", "").splitlines():
     ip, separator, rest = row.partition("|")
     if not separator:
@@ -186,7 +166,7 @@ for row in os.environ.get("SCAN_DATA", "").splitlines():
     vendor = vendor.strip()
     if vendor.startswith("(Unknown") or vendor.lower() == "unknown":
         vendor = ""
-    vendor = vendor or vendors.get(oui, "Unknown vendor")
+    vendor = vendors.get(oui) or vendor or "Unknown vendor"
     role = "Pi 5 / static Ethernet" if ip == "10.0.0.50" else ""
     devices.append({"ip": ip, "mac": mac, "oui": oui, "vendor": vendor, "device_type": device_type(vendor), "role": role})
 
@@ -194,8 +174,9 @@ devices.sort(key=lambda device: tuple(int(part) for part in device["ip"].split("
 
 import subprocess
 
-root_dir = os.path.dirname(os.path.dirname(os.path.abspath(os.environ.get("SCRIPT_FILENAME") or "/home/q/websd/cgi-bin/oui.cgi")))
-data_dir = os.path.join(root_dir, "logs")
+from phone_traffic import phone_traffic
+from realtek_wifi import read_wifi_counters
+
 config_path = os.path.join(data_dir, "oui-config.json")
 known_path = os.path.join(data_dir, "oui-known.json")
 alerts_path = os.path.join(data_dir, "oui-alerts.log")
@@ -291,8 +272,9 @@ for device in devices:
     device["workgroup"] = found.get("workgroup", "")
     label = labels.get(device["mac"], "")
     device["label"] = label
-    if device["randomized_mac"] and device["vendor"] == "Unknown vendor":
+    if device["randomized_mac"]:
         device["vendor"] = "Private/randomized MAC"
+        device["device_type"] = "Unknown device"
     entry = known.get(device["mac"])
     if entry is None:
         entry = {"first_seen": now_iso, "ip": device["ip"], "vendor": device["vendor"], "alerted": baseline}
@@ -340,6 +322,19 @@ try:
 except OSError:
     pass
 
+def internet_usage():
+    try:
+        with open("/var/lib/websitepi-sec/usage.json", encoding="utf-8") as handle:
+            usage = json.load(handle)
+        if not isinstance(usage, dict) or not isinstance(usage.get("devices"), dict):
+            raise ValueError("Invalid usage data")
+        return {
+            "ok": True, "started_at": usage["started_at"],
+            "updated_at": usage["updated_at"], "devices": usage["devices"],
+        }
+    except (OSError, ValueError, KeyError) as error:
+        return {"ok": False, "error": str(error)}
+
 print(json.dumps({
     "new_devices": new_devices,
     "sms_results": sms_results,
@@ -350,7 +345,13 @@ print(json.dumps({
     "oui_database": database_files[0] if database_files else "none",
     "eth0": {"ip": os.environ.get("ETH0_IP", ""), "mac": os.environ.get("ETH0_MAC", ""), "gateway": os.environ.get("ETH0_GATEWAY", "")},
     "usb0": {"ip": os.environ.get("USB0_IP", ""), "mac": os.environ.get("USB0_MAC", ""), "peer": os.environ.get("USB0_PEER", "")},
-    "phone": {"interfaces": phone_interfaces, "neighbors": phone_neighbors},
+    "phone": {
+        "interfaces": phone_interfaces,
+        "neighbors": phone_neighbors,
+        "traffic": {interface: phone_traffic(interface) for interface in ("ccmni0", "rndis0")},
+    },
+    "wifi_traffic": read_wifi_counters(),
+    "internet_usage": internet_usage(),
     "modem": {"interfaces": modem_interfaces, "neighbors": modem_neighbors, "reachable": bool(modem_interfaces or modem_neighbors), "status": os.environ.get("MODEM_STATUS", "unavailable")},
     "default_route": dict(zip(("gateway", "interface"), os.environ.get("DEFAULT_ROUTE", "|").split("|"))),
     "devices": devices,

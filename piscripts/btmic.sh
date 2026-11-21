@@ -1,45 +1,35 @@
 
 #!/bin/bash
 # bt_record.sh — record, stream, or playback Bluetooth audio
-# Smart version: checks headset first, restarts services only if needed
+# Check headset nodes before starting audio.
 
 REC_DIR="/home/q/recorded"
 PORT=8000
 
 mkdir -p "$REC_DIR"
 
-# --- Check Bluetooth headset status ---
 echo "🔍 Checking Bluetooth headset status..."
-BT_INPUT_INFO=$(pw-cli ls Node | grep -A25 "bluez_input" | head -n25)
-BT_OUTPUT_INFO=$(pw-cli ls Node | grep -A25 "bluez_sink" | head -n25)
-BT_INPUT_ID=$(echo "$BT_INPUT_INFO" | awk '/id/{print $2; exit}')
-BT_OUTPUT_ID=$(echo "$BT_OUTPUT_INFO" | awk '/id/{print $2; exit}')
-
-# Try multiple fields for name: node.description, device.description, node.name
-BT_DEVICE_NAME=$(echo "$BT_INPUT_INFO" | grep -Po '(?<=node.description = ").*(?=")' | head -n1)
-if [ -z "$BT_DEVICE_NAME" ]; then
-    BT_DEVICE_NAME=$(echo "$BT_INPUT_INFO" | grep -Po '(?<=device.description = ").*(?=")' | head -n1)
+if ! NODES=$(pw-cli ls Node); then
+    echo "Bluetooth audio nodes unavailable"
+    exit 1
 fi
-if [ -z "$BT_DEVICE_NAME" ]; then
-    BT_DEVICE_NAME=$(echo "$BT_INPUT_INFO" | grep -Po '(?<=node.name = ").*(?=")' | head -n1)
+find_node() {
+    printf '%s\n' "$NODES" | awk -v direction="$1" '
+        /^[[:space:]]*id [0-9]+, type PipeWire:Interface:Node/ {
+            id = $2
+            sub(/,$/, "", id)
+        }
+        direction == "input" && /node.name = "bluez_input\./ { print id; exit }
+        direction == "output" && /node.name = "bluez_(output|sink)\./ { print id; exit }
+    '
+}
+BT_INPUT_ID=$(find_node input)
+BT_OUTPUT_ID=$(find_node output)
+BT_DEVICE_NAME="Bluetooth headset"
+if [ -z "$BT_INPUT_ID" ] && [ -z "$BT_OUTPUT_ID" ]; then
+    echo "Bluetooth headset not detected"
+    exit 1
 fi
-
-if [ -n "$BT_INPUT_ID" ] || [ -n "$BT_OUTPUT_ID" ]; then
-    echo "✅ Headset detected: ${BT_DEVICE_NAME:-Unknown device}"
-else
-    echo "⚠️ Headset not detected, restarting Bluetooth and PipeWire..."
-    sudo systemctl restart bluetooth
-    systemctl --user restart pipewire
-    systemctl --user restart wireplumber
-    sleep 3
-fi
-
-# Recheck after restart
-BT_INPUT_INFO=$(pw-cli ls Node | grep -A15 "bluez_input" | head -n15)
-BT_OUTPUT_INFO=$(pw-cli ls Node | grep -A15 "bluez_sink" | head -n15)
-BT_INPUT_ID=$(echo "$BT_INPUT_INFO" | awk '/id/{print $2; exit}')
-BT_OUTPUT_ID=$(echo "$BT_OUTPUT_INFO" | awk '/id/{print $2; exit}')
-BT_DEVICE_NAME=$(echo "$BT_INPUT_INFO" | grep -Po '(?<=device.description = ").*(?=")' | head -n1)
 
 # Friendly output node label
 if [ -n "$BT_OUTPUT_ID" ]; then
@@ -53,19 +43,22 @@ echo "🎧 Output node: ${OUTPUT_LABEL}"
 
 
 cleanup() {
+    status=$?
     trap - INT TERM EXIT
     echo -e "\nCleaning up..."
-    pkill -f "pw-record --target $BT_INPUT_ID" 2>/dev/null
-    pkill -f "pw-play --target $BT_OUTPUT_ID" 2>/dev/null
-    pkill -f "socat - TCP-LISTEN:$PORT" 2>/dev/null
-    pkill -f "nc -l -p $PORT" 2>/dev/null
-    sleep 1
-    exit 0
+    exit "$status"
 }
-trap cleanup INT TERM EXIT
-
 echo "Choose mode: record / stream / playback / monitor"
 read MODE
+
+if { [ "$MODE" = "record" ] || [ "$MODE" = "stream" ] || [ "$MODE" = "monitor" ]; } &&
+   ! [[ "$BT_INPUT_ID" =~ ^[0-9]+$ ]]; then
+    echo "Bluetooth microphone input not detected"
+    exit 1
+fi
+trap 'exit 130' INT
+trap 'exit 143' TERM
+trap cleanup EXIT
 
 # --- RECORD MODE ---
 if [ "$MODE" = "record" ]; then
@@ -104,14 +97,16 @@ fi
 # --- STREAM MODE ---
 if [ "$MODE" = "stream" ]; then
     echo "Starting live stream on port $PORT..."
-    echo "Open: http://$(hostname -I | awk '{print $1}'):$PORT/live.mp3"
+    echo "Streaming locally on 127.0.0.1:$PORT"
 
-    # Release a listener left behind by an earlier stream process.
-    pkill -f "socat - TCP-LISTEN:$PORT" 2>/dev/null || true
-    if command -v fuser >/dev/null 2>&1; then
-        fuser -k "$PORT/tcp" 2>/dev/null || true
+    if ! LISTENERS=$(ss -H -ltn "sport = :$PORT"); then
+        echo "Could not check the audio port"
+        exit 1
     fi
-    sleep 1
+    if [ -n "$LISTENERS" ]; then
+        echo "Audio port $PORT is already in use"
+        exit 1
+    fi
 
     # Boost mic gain safely
     if [[ "$BT_INPUT_ID" =~ ^[0-9]+$ ]]; then
@@ -130,7 +125,10 @@ if [ "$MODE" = "stream" ]; then
             pw-record --target "$BT_INPUT_ID" --rate 16000 --channels 1 --format s16 --latency 20ms - 2>/dev/null | \
                 ffmpeg -hide_banner -loglevel error -fflags nobuffer -f s16le -ar 16000 -ac 1 -i - \
                 -c:a libmp3lame -b:a 64k -write_xing 0 -flush_packets 1 -f mp3 - 2>/dev/null
-        } | socat - TCP-LISTEN:$PORT,reuseaddr
+        } | socat - TCP-LISTEN:$PORT,bind=127.0.0.1,reuseaddr || {
+            echo "Audio listener failed"
+            exit 1
+        }
     done
 fi
 

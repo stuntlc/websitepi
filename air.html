@@ -47,7 +47,9 @@ const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&a
 const aqiColor = v => { v = Number(v); return isNaN(v) ? "#888" : v <= 50 ? "#00e400" : v <= 100 ? "#ffff00" : v <= 150 ? "#ff7e00" : v <= 200 ? "#ff0000" : v <= 300 ? "#8f3f97" : "#7e0023"; };
 const dot = (color, r) => ({ path: google.maps.SymbolPath.CIRCLE, scale: r, fillColor: color, fillOpacity: .95, strokeColor: "#000", strokeWeight: 1 });
 
-const MAX_MARKERS = 500;
+const MOBILE_MAP = window.matchMedia("(max-width: 760px) and (pointer: coarse)").matches;
+const MAX_MARKERS = MOBILE_MAP ? 100 : 500;
+const GRID_SIZE = MOBILE_MAP ? 10 : 20;
 const VIEW_DELAY = 250;
 let map, info, euLayer, worldLayer, heat, mode = null, heatOn = false;
 let euRows = null, euLoading = null, worldController = null, worldReq = 0, viewTimer;
@@ -58,7 +60,7 @@ let euLevels = {}, euLevelTime = "";
 
 function initMap() {
   map = new google.maps.Map(document.getElementById("map"), {
-    center: { lat: 50, lng: 10 }, zoom: 4, mapTypeId: "hybrid", mapTypeControl: true,
+    center: { lat: 50, lng: 10 }, zoom: 4, mapTypeId: MOBILE_MAP ? "roadmap" : "hybrid", mapTypeControl: true,
     streetViewControl: false, fullscreenControl: true, gestureHandling: "greedy"
   });
   info = new google.maps.InfoWindow();
@@ -151,8 +153,8 @@ function stationsInView(rows, bounds) {
     const x = (lon - bounds.west + 360) % 360;
     if (lat < bounds.south || lat > bounds.north || x > width) continue;
     count++;
-    const key = Math.min(19, Math.floor(x / width * 20)) + "," +
-      Math.min(19, Math.floor((lat - bounds.south) / height * 20));
+    const key = Math.min(GRID_SIZE - 1, Math.floor(x / width * GRID_SIZE)) + "," +
+      Math.min(GRID_SIZE - 1, Math.floor((lat - bounds.south) / height * GRID_SIZE));
     if (!cells.has(key)) cells.set(key, []);
     cells.get(key).push(row);
   }

@@ -1,0 +1,6 @@
+[WebsitePi reboot]
+Identity=unix-user:websitepi
+Action=org.freedesktop.login1.reboot;org.freedesktop.login1.reboot-multiple-sessions
+ResultAny=yes
+ResultInactive=yes
+ResultActive=yes

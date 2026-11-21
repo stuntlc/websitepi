@@ -37,8 +37,7 @@ class ReceiverStartupTests(unittest.TestCase):
             )
         with open(str(ROOT / "cgi-bin" / "udpmic.cgi")) as source:
             script = source.read()
-        script = script.replace("/home/q/websd/logs/udpmic.log", str(self.directory / "udpmic.log"))
-        script = script.replace("/tmp/udpmic.lock", str(self.lock))
+        script = script.replace("/run/websitepi/udpmic.lock", str(self.lock))
         script = script.replace("/home/q/websd/piscripts/udpmic[.]py", str(self.receiver).replace(".py", "[.]py"))
         script = script.replace("/home/q/websd/piscripts/udpmic.py", str(self.receiver))
         script = script.replace("9100", str(self.udp_port)).replace("9101", str(self.tcp_port))
@@ -51,7 +50,7 @@ class ReceiverStartupTests(unittest.TestCase):
         self.temp.cleanup()
 
     def cgi(self, action):
-        env = dict(os.environ, QUERY_STRING="action=" + action)
+        env = dict(os.environ, QUERY_STRING="action=" + action, WEBSITEPI_LOG_DIR=str(self.directory))
         process = subprocess.Popen(
             ["bash", str(self.script)], env=env, stdout=subprocess.PIPE,
             stderr=subprocess.PIPE, universal_newlines=True,
@@ -65,6 +64,16 @@ class ReceiverStartupTests(unittest.TestCase):
             result = self.cgi(action)
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             self.assertLess(time.monotonic() - started, 3)
+
+    def test_browser_stream_listens_only_on_loopback(self):
+        result = self.cgi("start")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        expected_port = "{:04X}".format(self.tcp_port)
+        with open("/proc/net/tcp") as connections:
+            listeners = [line.split()[1] for line in connections
+                         if len(line.split()) > 3 and line.split()[3] == "0A"
+                         and line.split()[1].endswith(":" + expected_port)]
+        self.assertEqual(listeners, ["0100007F:" + expected_port])
 
     def test_recovers_lock_inherited_by_old_receiver(self):
         with open(str(self.lock), "w") as lock:

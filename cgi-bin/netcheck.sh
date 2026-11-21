@@ -59,7 +59,7 @@ traceroute -w1 -q1 google.com 2>/dev/null
 echo ""
 
 echo "++BAT dump++"
-sudo adb shell dumpsys battery 2>/dev/null
+adb shell dumpsys battery 2>/dev/null
 echo ""
 # Close HTML
 cat <<EOF

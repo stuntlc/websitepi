@@ -4,8 +4,15 @@ import json
 import os
 import re
 
+from websitepi_paths import log_directory
+
+if os.environ.get("REQUEST_METHOD"):
+    from security_gate import require_access
+    if not require_access("json"):
+        raise SystemExit
+
 root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-config_path = os.path.join(root_dir, "logs", "oui-config.json")
+config_path = os.path.join(log_directory(root_dir), "oui-config.json")
 
 def respond(status, payload):
     print("Content-Type: application/json")

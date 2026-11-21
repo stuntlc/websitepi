@@ -1,0 +1,13 @@
+[Unit]
+Description=WebsitePi HTTP redirect
+Requires=security-redirect.socket
+
+[Service]
+User=websitepi
+Group=websitepi
+WorkingDirectory=/home/q/websd
+EnvironmentFile=/etc/websitepi-sec/redirect.env
+ExecStart=/usr/bin/python3 /home/q/websd/piscripts/security_redirect.py
+NoNewPrivileges=yes
+Restart=on-failure
+RestartSec=10

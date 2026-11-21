@@ -15,12 +15,21 @@ fi
 pkill -f mjpeg.py
 
 TS=$(date +%Y%m%d-%H%M%S)
-OUT="/home/q/websd/piscripts/$TS.jpg"
+MEDIA_DIR="${WEBSITEPI_MEDIA_DIR:-/home/q/websd/piscripts}"
+MEDIA_URL="/piscripts"
+if [ -n "${WEBSITEPI_MEDIA_DIR:-}" ]; then MEDIA_URL="/media"; fi
+OUT="$MEDIA_DIR/$TS.jpg"
 
 # Capture rotated image
-"${CAMERA_COMMAND[@]}" --rotation 180 -o "$OUT"
+if ! "${CAMERA_COMMAND[@]}" --rotation 180 -o "$OUT"; then
+	echo "Camera capture failed"
+	exit 1
+fi
 
 # Save latest filename
-echo "$TS.jpg" > /home/q/websd/piscripts/latest.txt
+if ! printf '%s\n' "$TS.jpg" > "$MEDIA_DIR/latest.txt"; then
+	echo "Could not save latest photo marker"
+	exit 1
+fi
 
-echo "saved:/piscripts/$TS.jpg"
+echo "saved:$MEDIA_URL/$TS.jpg"

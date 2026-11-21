@@ -7,8 +7,15 @@ import smtplib
 import ssl
 from email.message import EmailMessage
 
+from websitepi_paths import log_directory
+
+if os.environ.get("REQUEST_METHOD"):
+    from security_gate import require_access
+    if not require_access():
+        raise SystemExit
+
 root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-config_path = os.path.join(root_dir, "logs", "oui-mail.json")
+config_path = os.path.join(log_directory(root_dir), "oui-mail.json")
 
 def respond(status, text):
     print("Content-Type: text/plain")
@@ -20,7 +27,7 @@ try:
     with open(config_path, encoding="utf-8") as handle:
         config = json.load(handle)
 except (OSError, ValueError):
-    respond("500 Internal Server Error", "Mail not configured. Create logs/oui-mail.json (see README).")
+    respond("500 Internal Server Error", "Mail not configured. Create oui-mail.json in the website log directory.")
 
 form = cgi.FieldStorage()
 recipient = form.getfirst("to", "").strip() or config.get("default_to", "")

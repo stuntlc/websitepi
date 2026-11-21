@@ -2,7 +2,7 @@
 
 phone_portrait_begin() {
     local auto rotation
-    exec 9>/tmp/websitepi-phone-ui.lock || return 1
+    exec 9>/run/websitepi/phone-ui.lock || return 1
     if ! flock -w 30 9; then
         echo "Phone controls are busy. Try again."
         return 1

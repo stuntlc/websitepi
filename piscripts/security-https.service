@@ -1,0 +1,21 @@
+[Unit]
+Description=WebsitePi HTTPS service
+After=network.target
+Requires=security-https.socket
+
+[Service]
+Type=simple
+User=websitepi
+Group=websitepi
+WorkingDirectory=/home/q/websd
+Environment=WEBSITEPI_SEC_TLS=1
+Environment=HOME=/var/lib/websitepi
+Environment=WEBSITEPI_LOG_DIR=/var/lib/websitepi/logs
+Environment=WEBSITEPI_MEDIA_DIR=/var/lib/websitepi/media
+Environment=WEBSITEPI_MAPS_KEY_FILE=/etc/websitepi-sec/google-maps-key
+Environment=BTMIC_RESTRICTED=1
+Environment=BTMIC_SSH_KEY=/var/lib/websitepi/.ssh/btmic_ed25519
+NoNewPrivileges=yes
+ExecStart=/usr/bin/python3 /home/q/websd/piscripts/security_https.py
+Restart=on-failure
+RestartSec=10

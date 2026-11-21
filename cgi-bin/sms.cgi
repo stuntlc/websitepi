@@ -1,4 +1,7 @@
 #!/bin/bash
+if [ -n "${REQUEST_METHOD:-}" ]; then
+    python3 "$(dirname "$0")/security_gate.py" text || exit 0
+fi
 echo "Content-Type: text/plain"
 echo ""
 
@@ -14,11 +17,13 @@ case "$ACTION" in
         echo "LED OFF"
         ;;
     reboot)
-        sudo reboot
+        if ! systemctl reboot; then
+            echo "ERROR: Pi reboot is not available to the website account."
+            exit 1
+        fi
         ;;
     check_sms)
-        /bin/bash /home/q/websd/piscripts/readsms.sh &
-        echo "Started SMS monitor"
+        python3 "$(dirname "$0")/sms_monitor.py"
         ;;
     *)
         echo "Unknown action: $ACTION"
