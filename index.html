@@ -149,6 +149,9 @@ button:active, a:active {
   border: 1px solid rgba(0, 255, 0, 0.4);
   border-radius: 4px;
   background: #000;
+  font-family: Arial, sans-serif;
+  font-size: 13px;
+  font-weight: 700;
   white-space: nowrap;
 }
 
@@ -588,7 +591,7 @@ body::before { background: rgba(0, 0, 0, 0.82); }
     <button onclick="runAction('sensor.sh')">📟Volts</button>
     <button onclick="location.href='sensors.html'">📊Sensors</button>
     <div class="device-switch" role="group" aria-label="FM control; highlighted side is the last successful command">
-      <span>FM</span><span class="device-switch-track">
+      <span>📻FM</span><span class="device-switch-track">
         <button type="button" aria-label="FM off" aria-pressed="false" onclick="switchDevice(this, 'fmphoneoff', 'FM OFF')">off</button>
         <button type="button" aria-label="FM on" aria-pressed="false" onclick="switchDevice(this, 'fmradiophone', 'FM ON')">on</button>
       </span>
@@ -602,13 +605,13 @@ body::before { background: rgba(0, 0, 0, 0.82); }
     <button onclick="location.href='btmic.html'">🎙BT Mic</button>
     <button onclick="location.href='udpmic.html'">📡UDP Mic</button>
     <div class="device-switch" role="group" aria-label="LED control; highlighted side is the last successful command">
-      <span>LED</span><span class="device-switch-track">
+      <span>⚡LED</span><span class="device-switch-track">
         <button type="button" aria-label="LED off" aria-pressed="false" onclick="switchDevice(this, 'relayoff.sh', 'LED OFF')">off</button>
         <button type="button" aria-label="LED on" aria-pressed="false" onclick="switchDevice(this, 'relayon.sh', 'LED ON')">on</button>
       </span>
     </div>
     <div class="device-switch" role="group" aria-label="Phone flashlight control; highlighted side is the last successful command">
-      <span>FLASH</span><span class="device-switch-track">
+      <span>🔦FLASH</span><span class="device-switch-track">
         <button type="button" aria-label="Phone flashlight off" aria-pressed="false" onclick="switchDevice(this, 'phonelight0', 'Flashlight OFF')">off</button>
         <button type="button" aria-label="Phone flashlight on" aria-pressed="false" onclick="switchDevice(this, 'phonelight1', 'Flashlight ON')">on</button>
       </span>

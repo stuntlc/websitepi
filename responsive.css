@@ -43,8 +43,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   .home .topbar h1 { display: block; margin: 0; }
   .home .controls-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; align-items: stretch; }
   .home .controls-row button { min-width: 0; min-height: 44px; padding: 6px 3px; font-size: 12px; white-space: normal; overflow-wrap: anywhere; }
-  .home .device-switch { min-width: 0; min-height: 44px; gap: 3px; font-size: 11px; }
-  .home .device-switch-track button { min-width: 28px; min-height: 36px; padding: 3px; font-size: 10px; }
+  .home .device-switch { min-width: 0; min-height: 44px; gap: 3px; font-size: 12px; }
+  .home .device-switch-track button { min-width: 24px; min-height: 36px; padding: 3px; font-size: 10px; }
   .home .main { flex: none; justify-content: flex-start; overflow: visible; padding: 12px; }
   .home .media-container { max-width: 100%; align-items: stretch; }
   .home .media-container > div { min-width: 0; }
