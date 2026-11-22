@@ -985,8 +985,8 @@ function capturePhoneCameras() {
       document.getElementById("phoneRear").src = rear[1] + "?t=" + Date.now();
       document.getElementById("phoneFront").src = front[1] + "?t=" + Date.now();
       phoneRotations = { rear: 0, front: 0 };
-      document.getElementById("phoneRear").style.transform = "rotate(0deg)";
-      document.getElementById("phoneFront").style.transform = "rotate(0deg)";
+      rotatePhonePhoto("rear", 90);
+      rotatePhonePhoto("front", 90);
       output.innerText = "Phone rear and front photos captured.";
     })
     .catch(error => { output.innerText = "Phone camera error: " + error.message; });
