@@ -18,18 +18,18 @@ TS=$(date +%Y%m%d-%H%M%S)
 MEDIA_DIR="${WEBSITEPI_MEDIA_DIR:-/home/q/websd/piscripts}"
 MEDIA_URL="/piscripts"
 if [ -n "${WEBSITEPI_MEDIA_DIR:-}" ]; then MEDIA_URL="/media"; fi
-OUT="$MEDIA_DIR/$TS.jpg"
+FILE="$TS-raw.jpg"
+OUT="$MEDIA_DIR/$FILE"
 
-# Capture rotated image
-if ! "${CAMERA_COMMAND[@]}" --rotation 180 -o "$OUT"; then
+if ! "${CAMERA_COMMAND[@]}" -o "$OUT"; then
 	echo "Camera capture failed"
 	exit 1
 fi
 
 # Save latest filename
-if ! printf '%s\n' "$TS.jpg" > "$MEDIA_DIR/latest.txt"; then
+if ! printf '%s\n' "$FILE" > "$MEDIA_DIR/latest.txt"; then
 	echo "Could not save latest photo marker"
 	exit 1
 fi
 
-echo "saved:$MEDIA_URL/$TS.jpg"
+echo "saved:$MEDIA_URL/$FILE"

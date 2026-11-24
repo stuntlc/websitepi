@@ -11,8 +11,17 @@ its also connected via adb to a android phone redmi 9a with lineageos20 and can 
 
 The web interface adapts to desktop, tablet and phone screens. On smaller screens the control dashboard scrolls and uses larger touch targets; maps and dashboard panels resize or stack to fit.
 The FM, LED and phone flashlight controls each have a compact OFF/ON switch.
-Its highlight shows the last successful command in the current page, not a
-live device reading; after a reload neither side is highlighted.
+The highlights refresh from the phone's active FM audio input, relay GPIO
+pin level and phone flashlight brightness, including after reload. A
+missing or uncertain reading leaves both sides unhighlighted. FM indicates an
+active tuner input, not confirmed audible sound; the
+relay reports the GPIO level, not physical lamp operation; an input-mode pin
+can float and may not reflect the lamp. Readings refresh every 15 seconds and
+after commands.
+
+The Pi camera's live view and saved-photo preview are rotated in the browser;
+new photos are saved without camera-side rotation. Existing photos remain
+unchanged. The live view's rotation buttons still allow manual adjustment.
 
 The whole package is run on a diy made battery pack with 8 cells and a small bms that acts as a ups .. and can be carried in a backpack and provide noc on the go and lights and so on for about 4 hours.  it can be put on a wall charger 17v 3a , it then charges until full and then runs off battery again so its not constantly pulling power from the wall , more tests need to be run on the exact hours and power draw 
 it runs super cool and has no cooling fans inside the case the whole thing is passively cooled and runs pretty fast it boots up in around 1 min and can start providing internet in case off emergency 

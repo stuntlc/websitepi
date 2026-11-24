@@ -329,12 +329,20 @@ button:active, a:active {
   border: 1px solid rgba(0, 255, 0, 0.3);
 }
 
+#preview.pi-photo {
+  transform: rotate(90deg);
+}
+
+#preview.pi-photo-raw {
+  transform: rotate(270deg);
+}
+
 #live {
   display: none;
   width: min(80vw, 950px);
   height: auto;
   max-height: 78vh;
-  transform: rotate(180deg);
+  transform: rotate(270deg);
   transition: transform 0.3s ease;
 }
 
@@ -590,7 +598,7 @@ body::before { background: rgba(0, 0, 0, 0.82); }
     <button onclick="startLive()">🎥Live</button>
     <button onclick="runAction('sensor.sh')">📟Volts</button>
     <button onclick="location.href='sensors.html'">📊Sensors</button>
-    <div class="device-switch" role="group" aria-label="FM control; highlighted side is the last successful command">
+    <div class="device-switch" id="switch-fm" role="group" aria-label="FM control">
       <span>📻FM</span><span class="device-switch-track">
         <button type="button" aria-label="FM off" aria-pressed="false" onclick="switchDevice(this, 'fmphoneoff', 'FM OFF')">off</button>
         <button type="button" aria-label="FM on" aria-pressed="false" onclick="switchDevice(this, 'fmradiophone', 'FM ON')">on</button>
@@ -604,13 +612,13 @@ body::before { background: rgba(0, 0, 0, 0.82); }
     <button onclick="location.href='websh.html'">⌘WebShell</button>
     <button onclick="location.href='btmic.html'">🎙BT Mic</button>
     <button onclick="location.href='udpmic.html'">📡UDP Mic</button>
-    <div class="device-switch" role="group" aria-label="LED control; highlighted side is the last successful command">
+    <div class="device-switch" id="switch-led" role="group" aria-label="LED control">
       <span>⚡LED</span><span class="device-switch-track">
         <button type="button" aria-label="LED off" aria-pressed="false" onclick="switchDevice(this, 'relayoff.sh', 'LED OFF')">off</button>
         <button type="button" aria-label="LED on" aria-pressed="false" onclick="switchDevice(this, 'relayon.sh', 'LED ON')">on</button>
       </span>
     </div>
-    <div class="device-switch" role="group" aria-label="Phone flashlight control; highlighted side is the last successful command">
+    <div class="device-switch" id="switch-flash" role="group" aria-label="Phone flashlight control">
       <span>🔦FLASH</span><span class="device-switch-track">
         <button type="button" aria-label="Phone flashlight off" aria-pressed="false" onclick="switchDevice(this, 'phonelight0', 'Flashlight OFF')">off</button>
         <button type="button" aria-label="Phone flashlight on" aria-pressed="false" onclick="switchDevice(this, 'phonelight1', 'Flashlight ON')">on</button>
@@ -690,7 +698,9 @@ body::before { background: rgba(0, 0, 0, 0.82); }
 
 <script>
 let liveMode = false;
-let rotation = 180;
+let rotation = 270;
+let deviceStatusGeneration = 0;
+const deviceCommands = new Set();
 let phoneRotations = { rear: 0, front: 0 };
 let screenTimer = null;
 let screenGeneration = 0;
@@ -813,12 +823,21 @@ async function loadLatestPhoto() {
   preview.onerror = () => {
     if (source !== fallback) {
       source = fallback;
+      preview.classList.remove("pi-photo", "pi-photo-raw");
       preview.src = source + "?t=" + Date.now();
     } else {
       preview.style.display = "none";
     }
   };
+  setPiPhotoRotation(preview, source);
   preview.src = source + "?t=" + Date.now();
+}
+
+function setPiPhotoRotation(preview, source) {
+  const isPiPhoto = source !== "/1.jpeg";
+  const raw = /-raw\.jpg$/i.test(source);
+  preview.classList.toggle("pi-photo", isPiPhoto && !raw);
+  preview.classList.toggle("pi-photo-raw", isPiPhoto && raw);
 }
 
 /* -------------------------
@@ -857,21 +876,55 @@ function startLive() {
 ------------------------- */
 async function switchDevice(button, script, label) {
   const buttons = button.parentElement.querySelectorAll("button");
+  const device = button.closest(".device-switch").id.slice("switch-".length);
   const output = document.getElementById("output");
   closeOutputPanel();
+  deviceCommands.add(device);
+  deviceStatusGeneration++;
   buttons.forEach(item => { item.disabled = true; });
+  buttons.forEach(item => item.setAttribute("aria-pressed", "false"));
   output.innerText = label + ": sending command...";
   try {
     const response = await fetch("/cgi-bin/" + script, { cache: "no-store" });
     const text = (await response.text()).trim();
     if (!response.ok || /^ERROR\b/i.test(text)) throw new Error(text || "Device command failed.");
-    buttons.forEach(item => item.setAttribute("aria-pressed", String(item === button)));
     output.innerText = text || label;
   } catch (error) {
     buttons.forEach(item => item.setAttribute("aria-pressed", "false"));
     output.innerText = label + ": " + error.message;
   } finally {
     buttons.forEach(item => { item.disabled = false; });
+    deviceCommands.delete(device);
+    await refreshDeviceStatus();
+    setTimeout(refreshDeviceStatus, 4000);
+  }
+}
+
+async function refreshDeviceStatus() {
+  const generation = ++deviceStatusGeneration;
+  try {
+    const response = await fetch("/cgi-bin/device-status.cgi", { cache: "no-store" });
+    const result = await response.json();
+    if (!response.ok || !result.ok || !result.devices) throw new Error(result.error || "Invalid device status response");
+    if (generation !== deviceStatusGeneration) return;
+    for (const [name, label] of [["fm", "FM"], ["led", "LED"], ["flash", "FLASH"]]) {
+      if (deviceCommands.has(name)) continue;
+      const state = result.devices[name];
+      const group = document.getElementById("switch-" + name);
+      const buttons = group.querySelectorAll("button");
+      const known = state && typeof state.on === "boolean";
+      buttons.forEach((item, index) => item.setAttribute("aria-pressed", String(known && index === (state.on ? 1 : 0))));
+      group.title = known ? "" : label + " status unavailable";
+    }
+  } catch (error) {
+    if (generation !== deviceStatusGeneration) return;
+    for (const name of ["fm", "led", "flash"]) {
+      if (deviceCommands.has(name)) continue;
+      const group = document.getElementById("switch-" + name);
+      group.querySelectorAll("button").forEach(item => item.setAttribute("aria-pressed", "false"));
+      group.title = "Device status unavailable";
+    }
+    console.error("Device status unavailable:", error);
   }
 }
 
@@ -896,6 +949,7 @@ function runAction(script) {
           const parts = t.split(":");
           if (parts.length === 2) {
             const file = parts[1].trim();
+            setPiPhotoRotation(document.getElementById("preview"), file);
             document.getElementById("preview").src = file + "?t=" + Date.now();
           }
         });
@@ -1006,6 +1060,8 @@ function rotateRight() {
 }
 
 loadLatestPhoto();
+refreshDeviceStatus();
+setInterval(refreshDeviceStatus, 15000);
 </script>
 </body>
 </html>

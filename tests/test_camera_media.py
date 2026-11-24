@@ -96,10 +96,11 @@ class CameraMediaTests(unittest.TestCase):
                               capture_output=True, text=True, check=False)
 
     def test_capture_saves_and_reports_photo_in_media_directory(self):
-        self.command("rpicam-jpeg", 'printf photo > "$4"')
+        self.command("rpicam-jpeg", '[ "$1" = "-o" ] || exit 1; printf photo > "$2"')
         result = self.run_script("capture.sh")
         self.assertEqual(result.returncode, 0, result.stderr)
         name = (self.media / "latest.txt").read_text(encoding="utf-8").strip()
+        self.assertTrue(name.endswith("-raw.jpg"))
         self.assertEqual((self.media / name).read_bytes(), b"photo")
         self.assertIn("saved:/media/" + name, result.stdout)
 
