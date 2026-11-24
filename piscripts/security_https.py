@@ -6,6 +6,7 @@ import hashlib
 import errno
 import os
 import re
+import sqlite3
 import ssl
 import stat
 import subprocess
@@ -18,7 +19,8 @@ import urllib.request
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "cgi-bin"))
-from security_access import authorized, same_origin
+from security_access import authorized, peer_mac, same_origin
+from security_audit import record
 from systemd_listener import activated_server
 
 
@@ -36,6 +38,10 @@ class ThreadingTlsServer(http.server.ThreadingHTTPServer):
             connection.settimeout(None)
         except (OSError, ssl.SSLError) as error:
             print("TLS handshake failed: " + str(error), file=sys.stderr)
+            try:
+                record("TLS failed", client_address[0], peer_mac(client_address[0]))
+            except (OSError, sqlite3.Error) as audit_error:
+                print("Could not record TLS failure: " + str(audit_error), file=sys.stderr)
             request.close()
             return
         super().process_request_thread(connection, client_address)
@@ -64,9 +70,14 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
     def require_access(self):
         try:
-            if same_origin(self.access_environ()) and authorized(self.access_environ()):
+            environ = self.access_environ()
+            mac = peer_mac(environ["REMOTE_ADDR"])
+            allowed = same_origin(environ) and authorized(environ, observed_mac=mac)
+            record("allowed" if allowed else "denied", environ["REMOTE_ADDR"], mac,
+                   environ["WEBSITEPI_SEC_CLIENT_SHA256"], self.headers.get("User-Agent", ""))
+            if allowed:
                 return True
-        except (OSError, ValueError, RuntimeError) as error:
+        except (OSError, ValueError, RuntimeError, sqlite3.Error) as error:
             self.send_error(503, "SEC access check failed: " + str(error))
             return False
         self.send_error(403, "Trusted client certificate and device required")

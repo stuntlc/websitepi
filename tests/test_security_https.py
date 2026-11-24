@@ -71,6 +71,8 @@ class HttpsCgiTests(unittest.TestCase):
         self.root_patch.start()
         self.access_patch = mock.patch.object(security_https, "authorized", return_value=True)
         self.access_patch.start()
+        self.audit_patch = mock.patch.object(security_https, "record")
+        self.audit = self.audit_patch.start()
         self.server = security_https.ThreadingTlsServer(("127.0.0.1", 0), security_https.Handler)
         self.media_directory = directory / "media"
         self.media_directory.mkdir()
@@ -85,6 +87,7 @@ class HttpsCgiTests(unittest.TestCase):
         self.server.server_close()
         self.thread.join()
         self.access_patch.stop()
+        self.audit_patch.stop()
         self.root_patch.stop()
         self.temporary.cleanup()
 
@@ -121,6 +124,12 @@ class HttpsCgiTests(unittest.TestCase):
             self.request("GET", "/cgi-bin/fixture.cgi", client_certificate="untrusted")
         with mock.patch.object(security_https, "authorized", return_value=False):
             self.assertEqual(self.request("GET", "/cgi-bin/fixture.cgi")[0], 403)
+        self.assertEqual(self.audit.call_args.args[0], "denied")
+        self.assertEqual(self.audit.call_args.args[3], self.fingerprint)
+
+    def test_audit_failure_blocks_request(self):
+        self.audit.side_effect = OSError("audit unavailable")
+        self.assertEqual(self.request("GET", "/cgi-bin/fixture.cgi")[0], 503)
 
     def test_incomplete_handshake_does_not_block_another_client(self):
         with socket.create_connection(("127.0.0.1", self.server.server_port), timeout=2):

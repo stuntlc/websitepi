@@ -69,3 +69,16 @@ class SecurityAccessTests(unittest.TestCase):
                 Path(path).write_text('{"invalid": "invalid"}', encoding="utf-8")
                 with self.assertRaises(ValueError):
                     security_access.authorized(environ)
+
+    def test_observed_mac_is_used_for_the_gate(self):
+        fingerprint = "a" * 64
+        mac = "02:11:22:33:44:55"
+        environ = {"WEBSITEPI_SEC_TLS": "1", "WEBSITEPI_SEC_CLIENT_SHA256": fingerprint}
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "clients.json")
+            Path(path).write_text(json.dumps({fingerprint: mac}), encoding="utf-8")
+            with mock.patch.object(security_access, "CLIENTS_PATH", path), \
+                    mock.patch.object(security_access, "trusted_devices", return_value={mac}), \
+                    mock.patch.object(security_access, "peer_mac", side_effect=AssertionError("unexpected lookup")):
+                self.assertTrue(security_access.authorized(environ, observed_mac=mac))
+                self.assertFalse(security_access.authorized(environ, observed_mac=None))

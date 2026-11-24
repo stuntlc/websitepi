@@ -13,6 +13,7 @@ PROTECTED_PATH = "/etc/websitepi-sec/protected-macs.json"
 CLIENTS_PATH = "/etc/websitepi-sec/client-certificates.json"
 FINGERPRINT = re.compile(r"[0-9a-f]{64}")
 MAC = re.compile(r"(?:[0-9A-F]{2}:){5}[0-9A-F]{2}")
+UNSET = object()
 
 
 def trusted_devices():
@@ -62,14 +63,17 @@ def current_mac(environ=None):
     return mac if mac and mac in trusted_devices() else None
 
 
-def authorized(environ=None):
+def authorized(environ=None, observed_mac=UNSET):
     environ = os.environ if environ is None else environ
     if environ.get("WEBSITEPI_SEC_TLS") != "1":
         return False
     fingerprint = environ.get("WEBSITEPI_SEC_CLIENT_SHA256", "")
     if not FINGERPRINT.fullmatch(fingerprint):
         return False
-    mac = current_mac(environ)
+    if observed_mac is UNSET:
+        mac = current_mac(environ)
+    else:
+        mac = observed_mac if observed_mac and observed_mac in trusted_devices() else None
     if not mac:
         return False
     with open(CLIENTS_PATH, encoding="utf-8") as handle:
