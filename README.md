@@ -141,6 +141,31 @@ is kept separately on the PC, not on the Pi. Keep an encrypted, secure backup
 of it and the client credentials: losing the signing key prevents issuing
 additional client certificates from that CA.
 
+The SEC certificate watcher displays enrolled certificate fingerprints and
+their permitted MACs, manually recorded browser deployments, and the latest
+100 HTTPS access records. Browser names in access records are supplied by the
+client and can be faked. A shared certificate cannot identify which browser
+used it or reveal unrecorded copies; MAC addresses can also be spoofed. Failed
+TLS handshakes may not expose a certificate or MAC. The website service owns
+the access database, so its records are not tamper-proof. Records are removed
+after 30 days when accessed and by an hourly timer (up to one hour later);
+this is not secure erasure of SQLite storage. If logging fails, authenticated
+requests receive an error rather than proceeding without an audit record.
+
+Create `/etc/websitepi-sec/client-deployments.json` as root-owned, readable by
+the `websitepi` group, containing a JSON object mapping enrolled lowercase
+SHA-256 certificate fingerprints to arrays of manually recorded browser names.
+For example, `{"<fingerprint>": ["Pi 5 Chromium", "Pi 5 Firefox"]}`.
+Omitted certificates display "not recorded"; update this file whenever a
+browser is enrolled or removed. It does not grant access: the existing
+client-certificate and trusted-MAC inventories remain authoritative. Install
+`piscripts/security-audit-prune.service` and
+`piscripts/security-audit-prune.timer` under `/etc/systemd/system`, then run
+`sudo systemctl daemon-reload` and
+`sudo systemctl enable --now security-audit-prune.timer`. Install
+`cgi-bin/security_audit.py` and the executable `cgi-bin/security-audit.cgi`
+alongside the updated HTTPS service and SEC page.
+
 The HTTPS unit uses `/var/lib/websitepi/logs` for its mutable website data.
 Create it with access limited to the website account and migrate the needed
 inventory, labels and OUI data before switching services. Do not grant the

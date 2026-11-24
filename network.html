@@ -114,6 +114,13 @@ details.panel > summary { color: var(--green); cursor: pointer; font-weight: bol
       <div id="sec-access-status" class="device" aria-live="polite">Checking access...</div>
       <p class="notice">Access requires HTTPS, a device client certificate and a trusted MAC. MACs can be spoofed; physical port identity is not verified.</p>
       <p><a id="sec-https-link" hidden>[ OPEN SEC OVER HTTPS ]</a></p>
+      <h2 class="panel-title"><span>CERTIFICATE WATCHER</span><span>30 DAYS</span></h2>
+      <button id="audit-refresh" type="button">[ REFRESH CERTIFICATES ]</button>
+      <div id="audit-status" class="device" aria-live="polite">A trusted client certificate is required.</div>
+      <div id="audit-clients" class="device-list"></div>
+      <h3 class="section-label">RECENT HTTPS ACCESS // LAST 100</h3>
+      <div id="audit-events" class="device-list"></div>
+      <p class="notice">Browser deployments are manually recorded, not automatically detected. A shared certificate cannot prove which browser used it or detect copies. Browser descriptions are client-reported. MAC addresses can be spoofed; missing MACs cannot identify a device. TLS failures may not reveal a certificate. Access records are pruned hourly after 30 days and are not tamper-proof.</p>
       <h2 class="panel-title"><span>CONNECTION DIAGRAM</span><span id="map-count">0 HOSTS</span></h2>
       <p>Hover, focus or tap a device to see its details. Port positions follow the last confirmed physical setup, not live port detection.</p>
       <div id="connection-map" class="map-shell" aria-label="Network connection diagram"></div>
@@ -346,9 +353,41 @@ async function loadAccess() {
     status.textContent = "ACCESS UNAVAILABLE: " + error.message;
   }
   await loadTrust();
+  await loadAudit();
   await refreshInspection();
   if (secAuthorized) await scan();
 }
+
+async function loadAudit() {
+  const status = document.getElementById("audit-status");
+  const clients = document.getElementById("audit-clients");
+  const events = document.getElementById("audit-events");
+  if (!secAuthorized) {
+    status.textContent = "A trusted client certificate is required.";
+    clients.textContent = "";
+    events.textContent = "";
+    return;
+  }
+  try {
+    const response = await fetch("/cgi-bin/security-audit.cgi", { cache: "no-store" });
+    const result = await response.json();
+    if (!response.ok || !result.ok || !Array.isArray(result.clients) || !Array.isArray(result.events)) throw new Error(result.error || "Invalid certificate watcher response");
+    const count = result.clients.reduce((total, client) => total + client.browsers.length, 0);
+    status.textContent = `${result.clients.length} ENROLLED CERTIFICATE(S) // ${count} RECORDED BROWSER DEPLOYMENT(S)`;
+    clients.innerHTML = result.clients.map(client =>
+      `<article class="device"><strong>MAC ${escapeHtml(client.mac)}</strong><span>SHA-256 ${escapeHtml(client.fingerprint)}</span><span>BROWSERS: ${escapeHtml(client.browsers.join(", ") || "not recorded")}</span></article>`
+    ).join("") || "NO ENROLLED CERTIFICATES";
+    events.innerHTML = result.events.map(event =>
+      `<article class="device"><strong>${escapeHtml(event.outcome.toUpperCase())} // ${escapeHtml(new Date(event.time * 1000).toLocaleString())}</strong><span>IP ${escapeHtml(event.ip)} // MAC ${escapeHtml(event.mac || "unknown")}</span><span>SHA-256 ${escapeHtml(event.fingerprint || "unavailable")}</span><span>REPORTED BROWSER: ${escapeHtml(event.browser || "unavailable")}</span></article>`
+    ).join("") || "NO ACCESS RECORDS";
+  } catch (error) {
+    status.textContent = "CERTIFICATE WATCHER ERROR: " + error.message;
+    clients.textContent = "";
+    events.textContent = "";
+  }
+}
+
+document.getElementById("audit-refresh").addEventListener("click", loadAudit);
 
 function renderInspection() {
   const status = document.getElementById("inspect-status");

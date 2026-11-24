@@ -1,0 +1,9 @@
+[Unit]
+Description=Prune WebsitePi HTTPS access history
+
+[Service]
+Type=oneshot
+User=websitepi
+Group=websitepi
+Environment=WEBSITEPI_LOG_DIR=/var/lib/websitepi/logs
+ExecStart=/usr/bin/python3 /home/q/websd/cgi-bin/security_audit.py prune
